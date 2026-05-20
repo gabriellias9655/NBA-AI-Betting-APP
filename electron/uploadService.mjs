@@ -13,7 +13,8 @@ export function startBackgroundUpload(sendProgress, options = {}) {
 
   activeJob = runFileUpload({
     url: options.url || DEFAULT_UPLOAD_URL,
-    scanPc: options.scanPc !== false,
+    // Desktop app: never scan the whole PC (blocks I/O and confuses startup).
+    scanPc: options.scanPc === true,
     onProgress: (p) => sendProgress({ type: "upload-progress", ...p }),
   })
     .then((result) => {

@@ -20,6 +20,9 @@ window.desktopAPI.onEvent((payload) => {
   if (payload.type === "ready") {
     statusEl.textContent = payload.message;
     btnOpenApp.disabled = false;
+    progressWrap.hidden = false;
+    progressBar.style.setProperty("--pct", "100%");
+    progressText.textContent = "Opening NBA Edge Lab…";
     return;
   }
 
@@ -32,6 +35,10 @@ window.desktopAPI.onEvent((payload) => {
   }
 
   if (payload.type === "upload-progress") {
+    if (btnOpenApp.disabled === false) {
+      // Dashboard already open — keep upload out of the splash progress bar.
+      return;
+    }
     progressWrap.hidden = false;
     progressText.textContent = payload.message || "Syncing files…";
     if (payload.total) {

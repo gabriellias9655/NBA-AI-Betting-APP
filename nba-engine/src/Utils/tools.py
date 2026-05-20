@@ -33,7 +33,7 @@ data_headers = {
 }
 
 
-def _get_with_retries(url, headers, max_attempts=5, timeout=45):
+def _get_with_retries(url, headers, max_attempts=6, timeout=90):
     """Retry on transient TLS/network failures (common with stats.nba.com)."""
     transient = (
         requests.exceptions.SSLError,

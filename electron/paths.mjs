@@ -68,8 +68,10 @@ export function getVenvPython() {
   return null;
 }
 
-export function getFlaskUrl() {
-  return `http://${FLASK_HOST}:${FLASK_PORT}/`;
+/** @param {string} [pathname] */
+export function getFlaskUrl(pathname = "/") {
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return `http://${FLASK_HOST}:${FLASK_PORT}${path}`;
 }
 
 export function getFlaskOrigin() {

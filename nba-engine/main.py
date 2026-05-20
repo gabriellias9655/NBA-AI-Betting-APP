@@ -155,6 +155,14 @@ def main(args):
 
     stats_json = get_json_data(DATA_URL)
     df = to_data_frame(stats_json)
+    if df is None or df.empty or "TEAM_NAME" not in df.columns:
+        print(
+            Fore.RED,
+            "Could not load team stats from stats.nba.com (timeout or blocked). "
+            "Check your network and try again.",
+            Style.RESET_ALL,
+        )
+        return
     schedule_df = load_schedule()
     today = datetime.today()
     try:

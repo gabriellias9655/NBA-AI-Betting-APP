@@ -127,7 +127,13 @@ export async function waitForFlaskServer(timeoutMs = 180_000) {
     }
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (res.ok) return true;
+      if (res.ok) {
+        // Kick off background prediction warmup while splash finishes.
+        fetch(`http://${FLASK_HOST}:${FLASK_PORT}/api/warmup`, {
+          signal: AbortSignal.timeout(3000),
+        }).catch(() => {});
+        return true;
+      }
     } catch {
       /* retry */
     }

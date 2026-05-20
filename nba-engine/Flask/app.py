@@ -9,9 +9,12 @@ from functools import lru_cache
 import subprocess, requests, re, time
 
 _index_lock = threading.Lock()
+_warmup_lock = threading.Lock()
+_warmup_state = {"status": "idle", "error": None, "step": None}
 
 # NBA engine root (parent of Flask/) — always use same Python as this Flask process (venv).
 _ROOT_DIR = Path(__file__).resolve().parent.parent
+_PREDICT_TIMEOUT_SEC = 300
 
 
 @lru_cache()
@@ -31,7 +34,27 @@ def fetch_betmgm(ttl_hash=None):
 
 def fetch_game_data(sportsbook="fanduel"):
     cmd = [sys.executable, str(_ROOT_DIR / "main.py"), "-xgb", f"-odds={sportsbook}"]
-    stdout = subprocess.check_output(cmd, cwd=str(_ROOT_DIR), text=True)
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(_ROOT_DIR),
+            capture_output=True,
+            text=True,
+            timeout=_PREDICT_TIMEOUT_SEC,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"[predict] {sportsbook} timed out after {_PREDICT_TIMEOUT_SEC}s")
+        return {}
+    except Exception as exc:
+        print(f"[predict] {sportsbook} failed: {exc}")
+        return {}
+
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "").strip()
+        print(f"[predict] {sportsbook} exit {proc.returncode}: {err[-2000:]}")
+        return {}
+
+    stdout = proc.stdout
     data_re = re.compile(r'\n(?P<home_team>[\w ]+)(\((?P<home_confidence>[\d+\.]+)%\))? vs (?P<away_team>[\w ]+)(\((?P<away_confidence>[\d+\.]+)%\))?: (?P<ou_pick>OVER|UNDER) (?P<ou_value>[\d+\.]+) (\((?P<ou_confidence>[\d+\.]+)%\))?', re.MULTILINE)
     ev_re = re.compile(r'(?P<team>[\w ]+) EV: (?P<ev>[-\d+\.]+)', re.MULTILINE)
     odds_re = re.compile(r'(?P<away_team>[\w ]+) \((?P<away_team_odds>-?\d+)\) @ (?P<home_team>[\w ]+) \((?P<home_team_odds>-?\d+)\)', re.MULTILINE)
@@ -65,6 +88,51 @@ def get_ttl_hash(seconds=600):
     return round(time.time() / seconds)
 
 
+def _run_warmup():
+    global _warmup_state
+    books = [
+        ("fanduel", fetch_fanduel),
+        ("draftkings", fetch_draftkings),
+        ("betmgm", fetch_betmgm),
+    ]
+    ttl = get_ttl_hash()
+    try:
+        with _index_lock:
+            for name, fetcher in books:
+                _warmup_state = {"status": "running", "error": None, "step": name}
+                fetcher(ttl_hash=ttl)
+        _warmup_state = {"status": "ready", "error": None, "step": None}
+    except Exception as exc:
+        _warmup_state = {"status": "error", "error": str(exc), "step": None}
+
+
+def ensure_warmup_started():
+    global _warmup_state
+    with _warmup_lock:
+        if _warmup_state["status"] != "idle":
+            return
+        _warmup_state = {"status": "running", "error": None, "step": "starting"}
+    threading.Thread(target=_run_warmup, daemon=True).start()
+
+
+def get_predictions_data():
+    """Return cached sportsbook data (runs warmup first if needed)."""
+    global _warmup_state
+    ensure_warmup_started()
+    if _warmup_state["status"] == "running":
+        return None
+    if _warmup_state["status"] == "error":
+        raise RuntimeError(_warmup_state["error"] or "Prediction warmup failed")
+
+    ttl = get_ttl_hash()
+    with _index_lock:
+        return {
+            "fanduel": fetch_fanduel(ttl_hash=ttl),
+            "draftkings": fetch_draftkings(ttl_hash=ttl),
+            "betmgm": fetch_betmgm(ttl_hash=ttl),
+        }
+
+
 app = Flask(__name__)
 app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 
@@ -72,21 +140,43 @@ app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 @app.route("/health")
 def health():
     """Lightweight liveness check — must not spawn ML subprocesses."""
-    return jsonify({"ok": True})
+    ensure_warmup_started()
+    return jsonify({"ok": True, "warmup": _warmup_state["status"]})
+
+
+@app.route("/api/warmup")
+def api_warmup():
+    ensure_warmup_started()
+    return jsonify(_warmup_state)
+
+
+@app.route("/loading")
+def loading_page():
+    ensure_warmup_started()
+    return render_template("loading.html", today=date.today())
 
 
 @app.route("/")
 def index():
-    # Serialize heavy work so concurrent page loads do not spawn 3× subprocesses each.
-    with _index_lock:
-        fanduel = fetch_fanduel(ttl_hash=get_ttl_hash())
-        draftkings = fetch_draftkings(ttl_hash=get_ttl_hash())
-        betmgm = fetch_betmgm(ttl_hash=get_ttl_hash())
+    if _warmup_state["status"] == "running":
+        return render_template("loading.html", today=date.today())
+
+    try:
+        data = get_predictions_data()
+    except RuntimeError as exc:
+        return render_template(
+            "loading.html",
+            today=date.today(),
+            error=str(exc),
+        ), 503
+
+    if data is None:
+        return render_template("loading.html", today=date.today())
 
     return render_template(
         "index.html",
         today=date.today(),
-        data={"fanduel": fanduel, "draftkings": draftkings, "betmgm": betmgm},
+        data=data,
     )
 
 

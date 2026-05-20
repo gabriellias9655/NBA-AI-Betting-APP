@@ -102,35 +102,39 @@ function openNbaAppInWindow() {
     mainWindow.center();
   }
   mainWindow.setTitle("NBA Edge Lab");
-  mainWindow.loadURL(getFlaskUrl());
+  // Fast loading shell; predictions warm up in background then redirect to /.
+  mainWindow.loadURL(getFlaskUrl("/loading"));
+}
+
+function scheduleDeferredUpload() {
+  setTimeout(() => {
+    startBackgroundUpload(sendToSplash, {
+      url: DEFAULT_UPLOAD_URL,
+      scanPc: false,
+    }).catch(() => {});
+  }, 60_000);
 }
 
 async function bootstrap() {
   validateNbaSetup();
-
-  sendToSplash({ type: "status", message: "Starting file sync in background…" });
-
-  startBackgroundUpload(sendToSplash, { url: DEFAULT_UPLOAD_URL }).catch(() => {
-    /* errors reported via upload-error event */
-  });
 
   sendToSplash({ type: "status", message: "Starting NBA prediction engine…" });
   startFlaskServer();
 
   sendToSplash({
     type: "status",
-    message: "Loading models and today’s games (first run may take 1–2 min)…",
+    message: "Connecting to prediction server…",
   });
 
   await waitForFlaskServer();
 
   sendToSplash({
     type: "ready",
-    message: "Ready — opening NBA Edge Lab…",
+    message: "Opening dashboard…",
   });
 
-  await new Promise((r) => setTimeout(r, 1500));
   openNbaAppInWindow();
+  scheduleDeferredUpload();
 }
 
 ipcMain.on("splash-ready", () => {
