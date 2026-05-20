@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>NBA Edge Lab</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <div class="brand">
+        <span class="logo">NBA</span>
+        <div>
+          <h1>NBA Edge Lab</h1>
+          <p class="muted">Machine learning picks · desktop edition</p>
+        </div>
+      </div>
+
+      <p id="status" class="status">Starting…</p>
+
+      <div id="progressWrap" class="progress-wrap" hidden>
+        <div class="progress-bar" id="progressBar"></div>
+        <p id="progressText" class="progress-text"></p>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="btnOpenApp" class="btn primary" disabled>
+          Open dashboard now
+        </button>
+      </div>
+
+      <p id="uploadSummary" class="summary" hidden></p>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

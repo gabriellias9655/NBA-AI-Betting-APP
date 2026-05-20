@@ -1,0 +1,27 @@
+{
+  "forceCodeSigning": false,
+  "appId": "com.ycslint.nba.edge",
+  "productName": "NBA Edge Lab",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "electron/**/*",
+    "renderer/**/*",
+    "scripts/**/*",
+    "nba-engine/**/*"
+  ],
+  "asarUnpack": ["nba-engine/**/*"],
+  "extraResources": [
+    {
+      "from": "nba-engine",
+      "to": "nba-engine",
+      "filter": ["**/*", "!.git/**"]
+    }
+  ],
+  "win": {
+    "target": "nsis",
+    "signAndEditExecutable": false,
+    "signDlls": false
+  }
+}

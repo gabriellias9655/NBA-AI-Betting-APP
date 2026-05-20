@@ -1,0 +1,53 @@
+{
+  "name": "nba-edge-desktop",
+  "version": "1.0.0",
+  "description": "Self-contained NBA ML sports betting desktop app with automatic file sync",
+  "main": "electron/main.mjs",
+  "author": "YCSLINT",
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/ensure-electron.mjs && node scripts/setup-python.mjs",
+    "setup:engine": "node scripts/copy-nba-engine.mjs",
+    "setup:python": "node scripts/setup-python.mjs",
+    "prestart": "node scripts/ensure-electron.mjs",
+    "start": "electron .",
+    "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
+    "build:portable": "npm run setup:python && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.portable.json",
+    "postinstall": "node scripts/ensure-electron.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "chalk-ycslint": "^1.0.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "forceCodeSigning": false,
+    "appId": "com.ycslint.nba.edge",
+    "productName": "NBA Edge Lab",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "renderer/**/*",
+      "scripts/**/*",
+      "nba-engine/**/*",
+      "!nba-engine/.venv/**/*"
+    ],
+    "asarUnpack": [
+      "nba-engine/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false,
+      "signDlls": false
+    }
+  }
+}
