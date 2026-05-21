@@ -1,3 +1,4 @@
+{% from '_team_macros.html' import matchup_line, team_logo, team_chip %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,7 +11,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body>
+<body class="{% if embedded %}embedded-app{% endif %}">
     {% set fanduel_games = data.get('fanduel') or {} %}
     {% set games_count = fanduel_games|length %}
     <div class="page">
@@ -29,6 +30,7 @@
                         <small>Machine Learning Picks</small>
                     </div>
                 </div>
+                {% if not embedded %}
                 <div class="nav-links">
                     <a href="#picks">Today's Board</a>
                     <a href="#stack">Model Stack</a>
@@ -38,6 +40,7 @@
                     <a class="btn btn-ghost" href="#picks">View Picks</a>
                     <a class="btn btn-primary" href="#stack">How It Works</a>
                 </div>
+                {% endif %}
             </nav>
         </header>
 
@@ -97,29 +100,97 @@
                 <div class="section-header">
                     <div>
                         <div class="eyebrow">Market pulse</div>
-                        <h2>Translate market odds into model-ready signals.</h2>
-                        <p>We blend season-long team stats with live odds to surface value and totals lean.</p>
+                        <h2>Today's model signals at a glance.</h2>
+                        <p>Live moneyline lean, totals pick, and expected value from FanDuel lines ({{ today }}).</p>
                     </div>
-                    <div class="chip">Signal + Context</div>
+                    <div class="chip">{{ market_pulse.games }} matchup{{ 's' if market_pulse.games != 1 else '' }}</div>
                 </div>
-                <div class="insights-grid">
-                    <div class="insight-card reveal">
-                        <h4>EV Overlay</h4>
-                        <p>Every side includes expected value so you can separate noise from true edge.</p>
+
+                {% if market_pulse.games == 0 %}
+                <div class="pulse-empty reveal">
+                    <p>No market data yet. Signals appear here once today's predictions load on the board below.</p>
+                </div>
+                {% else %}
+                <div class="pulse-summary reveal">
+                    <div class="pulse-stat">
+                        <span>Matchups</span>
+                        <strong>{{ market_pulse.games }}</strong>
                     </div>
-                    <div class="insight-card reveal" data-delay="80">
-                        <h4>Rest-Aware Features</h4>
-                        <p>Days of rest and schedule effects are baked into matchup features.</p>
+                    <div class="pulse-stat">
+                        <span>+EV sides (FD)</span>
+                        <strong>{{ market_pulse.plus_ev_sides }}</strong>
                     </div>
-                    <div class="insight-card reveal" data-delay="160">
-                        <h4>Odds Consistency</h4>
-                        <p>Compare three books side-by-side and spot pricing gaps instantly.</p>
+                    <div class="pulse-stat">
+                        <span>Avg O/U confidence</span>
+                        <strong>{% if market_pulse.avg_ou_confidence is not none %}{{ market_pulse.avg_ou_confidence }}%{% else %}--{% endif %}</strong>
                     </div>
-                    <div class="insight-card reveal" data-delay="240">
-                        <h4>Totals Confidence</h4>
-                        <p>Over/under picks include probability confidence to gauge conviction.</p>
+                    <div class="pulse-stat">
+                        <span>Top EV edge</span>
+                        <strong>
+                            {% if market_pulse.top_ev %}
+                                {{ market_pulse.top_ev.team }} (+{{ market_pulse.top_ev.ev }})
+                            {% else %}
+                                --
+                            {% endif %}
+                        </strong>
                     </div>
                 </div>
+
+                <div class="pulse-table-wrap reveal" data-delay="80">
+                    <table class="pulse-table">
+                        <thead>
+                            <tr>
+                                <th>Matchup</th>
+                                <th>ML lean</th>
+                                <th>Conf</th>
+                                <th>Totals</th>
+                                <th>O/U conf</th>
+                                <th>Books O/U</th>
+                                <th>Best EV</th>
+                                <th>Away</th>
+                                <th>Home</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in market_pulse.rows %}
+                            <tr>
+                                <td class="pulse-matchup-cell">
+                                    {{ matchup_line(row.away_team, row.home_team) }}
+                                </td>
+                                <td class="pulse-lean-cell">
+                                    {{ team_chip(row.lean_team, '#modal-' ~ row.lean_team|replace(' ', '-')|lower) }}
+                                </td>
+                                <td>{{ row.lean_conf|round(1) }}%</td>
+                                <td class="pulse-totals-cell">
+                                    {% if row.ou_pick and row.ou_value %}
+                                        <span class="pulse-ou {% if row.ou_pick == 'UNDER' %}under{% endif %}">{{ row.ou_pick }} {{ row.ou_value }}</span>
+                                    {% else %}--{% endif %}
+                                </td>
+                                <td>{% if row.ou_confidence is not none %}{{ row.ou_confidence|round(1) }}%{% else %}--{% endif %}</td>
+                                <td>
+                                    {% if row.ou_consensus %}
+                                        <span class="pulse-consensus {% if row.ou_consensus == 'Split' %}split{% endif %}">{{ row.ou_consensus }}</span>
+                                    {% else %}--{% endif %}
+                                </td>
+                                <td class="{% if row.best_ev and row.best_ev > 0 %}positive{% elif row.best_ev is not none %}negative{% endif %}">
+                                    {% if row.best_ev is not none %}
+                                        {{ row.best_ev_team }} ({{ '%+.2f'|format(row.best_ev) }})
+                                    {% else %}--{% endif %}
+                                </td>
+                                <td class="pulse-odds">
+                                    {% if row.away_odds %}{% if row.away_odds|int > 0 %}+{% endif %}{{ row.away_odds }}{% else %}--{% endif %}
+                                    {% if row.away_ev is not none %}<small class="{% if row.away_ev > 0 %}positive{% else %}negative{% endif %}">EV {{ '%+.2f'|format(row.away_ev) }}</small>{% endif %}
+                                </td>
+                                <td class="pulse-odds">
+                                    {% if row.home_odds %}{% if row.home_odds|int > 0 %}+{% endif %}{{ row.home_odds }}{% else %}--{% endif %}
+                                    {% if row.home_ev is not none %}<small class="{% if row.home_ev > 0 %}positive{% else %}negative{% endif %}">EV {{ '%+.2f'|format(row.home_ev) }}</small>{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
             </section>
 
             <section id="picks" class="section">
@@ -133,6 +204,21 @@
                 </div>
 
                 <div class="picks-grid">
+                    {% if games_count == 0 %}
+                    <div class="empty-board reveal">
+                        <h3>No matchups loaded</h3>
+                        {% if load_error %}
+                        <p>{{ load_error }}</p>
+                        {% else %}
+                        <p>
+                            Predictions did not run or could not be read. Common causes: stats.nba.com blocked or
+                            timed out, no odds totals for today’s games, or the model subprocess failed.
+                        </p>
+                        {% endif %}
+                        <p class="muted">Run <code>npm run setup:python</code> then <code>npm start</code>.
+                            Team stats use <code>nba_api</code> and bundled offline data — not stats.nba.com directly.</p>
+                    </div>
+                    {% endif %}
                     {% for game_key, fd_game in fanduel_games.items() %}
                     {% set teams = game_key.split(':') %}
                     {% set away_team = teams[0] %}
@@ -149,18 +235,35 @@
                     <article class="game-card reveal" data-delay="{{ loop.index0 * 60 }}">
                         <div class="game-header">
                             <div class="matchup">
-                                <div class="team-stack">
-                                    <span class="team-name" data-bs-toggle="modal" data-bs-target="#modal-{{ away_team|replace(' ', '-')|lower }}">{{ away_team }}</span>
-                                    <span class="team-name" data-bs-toggle="modal" data-bs-target="#modal-{{ home_team|replace(' ', '-')|lower }}">{{ home_team }}</span>
-                                </div>
-                                <span class="at">@</span>
+                                {{ matchup_line(away_team, home_team) }}
                             </div>
                             <div class="lean">
                                 <span>Model lean</span>
-                                <strong>{{ lean_team }}</strong>
+                                <strong class="lean-team">
+                                    {{ team_logo(lean_team, 'sm') }}
+                                    <span>{{ lean_team }}</span>
+                                </strong>
                                 <div class="player-meta">{{ lean_conf|round(1) }}% confidence</div>
                             </div>
                         </div>
+                        {% if fd_game %}
+                        {% set model_away_conf = fd_game.away_confidence|default('0')|float %}
+                        {% set model_home_conf = fd_game.home_confidence|default('0')|float %}
+                        <div class="model-snapshot">
+                            <div class="model-snapshot-item">
+                                <span class="model-snapshot-label">Model win %</span>
+                                <span>{{ away_team }} {{ model_away_conf|round(1) }}% · {{ home_team }} {{ model_home_conf|round(1) }}%</span>
+                            </div>
+                            <div class="model-snapshot-item">
+                                <span class="model-snapshot-label">Totals pick</span>
+                                <span>
+                                    {% if fd_game.ou_pick and fd_game.ou_value %}
+                                        {{ fd_game.ou_pick }} ({{ fd_game.ou_confidence }}% conf) — line varies by book
+                                    {% else %}--{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="books-grid">
                             {% for sportsbook in ['fanduel', 'draftkings', 'betmgm'] %}
                             {% set book_data = data.get(sportsbook) or {} %}
@@ -168,59 +271,35 @@
                             <div class="book-card">
                                 <div class="book-head">
                                     <span class="book-name">{{ sportsbook }}</span>
-                                    {% if sbgame %}
-                                        {% if sbgame.ou_pick %}
-                                            <span class="ou-chip {% if sbgame.ou_pick == 'UNDER' %}under{% endif %}">{{ sbgame.ou_pick }} {{ sbgame.ou_value }}</span>
-                                        {% endif %}
+                                    {% if sbgame and sbgame.ou_value %}
+                                        <span class="book-line-tag">O/U {{ sbgame.ou_value }}</span>
                                     {% endif %}
                                 </div>
                                 {% if sbgame %}
-                                    {% set away_conf = sbgame.away_confidence|default('0')|float %}
-                                    {% set home_conf = sbgame.home_confidence|default('0')|float %}
                                     {% set away_ev = sbgame.away_team_ev|default('0')|float %}
                                     {% set home_ev = sbgame.home_team_ev|default('0')|float %}
-                                    <div class="book-lines">
-                                        <div>
-                                            <div class="line-row">
-                                                <span>{{ sbgame.away_team }}</span>
-                                                <span class="odds">
-                                                    {% if sbgame.away_team_odds %}
-                                                        {% if sbgame.away_team_odds|int > 0 %}+{% endif %}{{ sbgame.away_team_odds }}
-                                                    {% else %}
-                                                        --
-                                                    {% endif %}
-                                                </span>
-                                                <span class="confidence">
-                                                    {% if sbgame.away_confidence %}{{ sbgame.away_confidence }}%{% else %}--{% endif %}
-                                                </span>
-                                                <span class="ev {% if away_ev > 0 %}positive{% else %}negative{% endif %}">
-                                                    {{ sbgame.away_team_ev if sbgame.away_team_ev else '--' }}
-                                                </span>
-                                            </div>
-                                            <div class="confidence-bar" style="--bar: {{ away_conf }}%;">
-                                                <span></span>
-                                            </div>
+                                    <div class="book-lines book-lines-compact">
+                                        <div class="line-row">
+                                            <span class="line-team">{{ team_logo(sbgame.away_team, 'xs') }}<span>{{ sbgame.away_team }}</span></span>
+                                            <span class="odds">
+                                                {% if sbgame.away_team_odds is not none %}
+                                                    {% if sbgame.away_team_odds|int > 0 %}+{% endif %}{{ sbgame.away_team_odds }}
+                                                {% else %}--{% endif %}
+                                            </span>
+                                            <span class="ev {% if away_ev > 0 %}positive{% elif sbgame.away_team_ev is not none %}negative{% endif %}">
+                                                EV {{ sbgame.away_team_ev if sbgame.away_team_ev is not none else '--' }}
+                                            </span>
                                         </div>
-                                        <div>
-                                            <div class="line-row">
-                                                <span>{{ sbgame.home_team }}</span>
-                                                <span class="odds">
-                                                    {% if sbgame.home_team_odds %}
-                                                        {% if sbgame.home_team_odds|int > 0 %}+{% endif %}{{ sbgame.home_team_odds }}
-                                                    {% else %}
-                                                        --
-                                                    {% endif %}
-                                                </span>
-                                                <span class="confidence">
-                                                    {% if sbgame.home_confidence %}{{ sbgame.home_confidence }}%{% else %}--{% endif %}
-                                                </span>
-                                                <span class="ev {% if home_ev > 0 %}positive{% else %}negative{% endif %}">
-                                                    {{ sbgame.home_team_ev if sbgame.home_team_ev else '--' }}
-                                                </span>
-                                            </div>
-                                            <div class="confidence-bar" style="--bar: {{ home_conf }}%;">
-                                                <span></span>
-                                            </div>
+                                        <div class="line-row">
+                                            <span class="line-team">{{ team_logo(sbgame.home_team, 'xs') }}<span>{{ sbgame.home_team }}</span></span>
+                                            <span class="odds">
+                                                {% if sbgame.home_team_odds is not none %}
+                                                    {% if sbgame.home_team_odds|int > 0 %}+{% endif %}{{ sbgame.home_team_odds }}
+                                                {% else %}--{% endif %}
+                                            </span>
+                                            <span class="ev {% if home_ev > 0 %}positive{% elif sbgame.home_team_ev is not none %}negative{% endif %}">
+                                                EV {{ sbgame.home_team_ev if sbgame.home_team_ev is not none else '--' }}
+                                            </span>
                                         </div>
                                     </div>
                                 {% else %}
@@ -271,7 +350,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
-    {% include 'team_modal.html' %}
     {% include 'player_modal.html' %}
+    {% include 'team_modal.html' %}
 </body>
 </html>

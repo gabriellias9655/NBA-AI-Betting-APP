@@ -65,9 +65,9 @@ def load_frame_columns(path):
 def load_live_frames():
     sys.path.insert(0, str(BASE_DIR))
     from main import create_todays_games_data, load_schedule, DATA_URL, TODAYS_GAMES_URL
-    from src.Utils.tools import get_json_data, to_data_frame, get_todays_games_json, create_todays_games
+    from src.Utils.tools import get_team_stats_result_sets, to_data_frame, get_todays_games_json, create_todays_games
 
-    stats_json = get_json_data(DATA_URL)
+    stats_json = get_team_stats_result_sets(DATA_URL)
     df = to_data_frame(stats_json)
     schedule_df = load_schedule()
     today = datetime.today()

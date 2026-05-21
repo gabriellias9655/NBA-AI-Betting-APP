@@ -1,18 +1,21 @@
+{% from '_team_macros.html' import team_logo %}
 {% for game_key in (data.get('fanduel') or {}) %}
 {% set teams = game_key.split(':') %}
 {% for team in teams %}
 <div class="modal fade" id="modal-{{ team|replace(' ', '-')|lower }}" tabindex="-1"
-    aria-labelledby="modal-{{ team|replace(' ', '-')|lower }}-label" aria-hidden="true" data-bs-backdrop="true">
+    aria-labelledby="modal-{{ team|replace(' ', '-')|lower }}-label" aria-hidden="true" data-bs-backdrop="true"
+    data-team-name="{{ team|e }}">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modal-{{ team|replace(' ', '-')|lower }}-label">
-                    {{ team }} roster
+                <h5 class="modal-title modal-title-team" id="modal-{{ team|replace(' ', '-')|lower }}-label">
+                    {{ team_logo(team, 'md', team) }}
+                    <span>{{ team }} roster</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div id="team-data-{{ team|replace(' ', '-')|lower }}" class="player-roster row">
+                <div id="team-data-{{ team|replace(' ', '-')|lower }}" class="player-roster">
                     <div class="loading-spinner text-center py-4 mt-3">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
@@ -35,13 +38,24 @@
 
 <script>
     const teamDataCache = new Map();
+    const TEAM_ROSTER_CACHE_VERSION = 2;
 
     document.addEventListener('DOMContentLoaded', function() {
+        function escapeAttr(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;")
+                .replace(/</g, "&lt;");
+        }
+
         function createPlayerCard(player) {
             const isHealthy = player.injury === 'Healthy';
             return `
                 <div class="col-12 col-xl-6 mb-3">
-                    <div class="player-card" onclick="showPlayerModal('${player.playerId}')">
+                    <div class="player-card" role="button" tabindex="0"
+                         data-player-id="${escapeAttr(player.playerId)}"
+                         data-player-name="${escapeAttr(player.name || '')}">
                         <div class="d-flex align-items-start gap-3">
                             <img src="${player.headshot}"
                                  alt="${player.name}"
@@ -66,29 +80,47 @@
             `;
         }
 
-        window.showPlayerModal = function(playerId) {
-            const teamModal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
-            if (teamModal) {
-                teamModal.hide();
+        function handlePlayerCardActivate(card) {
+            if (!card || !card.dataset.playerId) return;
+            if (typeof window.openPlayerProfile !== 'function') {
+                console.error('openPlayerProfile is not available');
+                return;
             }
+            window.openPlayerProfile(
+                card.dataset.playerId,
+                card.dataset.playerName || ''
+            );
+        }
 
-            setTimeout(() => {
-                document.getElementById('player-modal-id').textContent = playerId;
-                const playerModal = new bootstrap.Modal(document.getElementById('player-modal'));
-                playerModal.show();
-            }, 150);
-        };
+        document.addEventListener('click', function(event) {
+            const card = event.target.closest('.player-card[data-player-id]');
+            if (!card) return;
+            event.preventDefault();
+            event.stopPropagation();
+            handlePlayerCardActivate(card);
+        });
 
-        document.querySelectorAll('.modal').forEach(function(modalElement) {
+        document.addEventListener('keydown', function(event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const card = event.target.closest('.player-card[data-player-id]');
+            if (!card) return;
+            event.preventDefault();
+            handlePlayerCardActivate(card);
+        });
+
+        document.querySelectorAll('.modal[id^="modal-"]').forEach(function(modalElement) {
             modalElement.addEventListener('shown.bs.modal', function() {
-                const teamName = this.querySelector('.modal-title').textContent.replace(' roster', '').trim();
+                const teamName = this.dataset.teamName
+                    || this.querySelector('.modal-title .team-chip-label, .modal-title span')?.textContent?.replace(/\s*roster\s*$/i, '').trim()
+                    || '';
                 const teamDataContainer = this.querySelector('.player-roster');
                 const loadingSpinner = teamDataContainer.querySelector('.loading-spinner');
                 const playerList = teamDataContainer.querySelector('.player-list');
                 const errorMessage = teamDataContainer.querySelector('.error-message');
 
-                if (teamDataCache.has(teamName)) {
-                    playerList.innerHTML = `<div class="row">${teamDataCache.get(teamName)}</div>`;
+                const cacheKey = `${TEAM_ROSTER_CACHE_VERSION}:${teamName}`;
+                if (teamDataCache.has(cacheKey)) {
+                    playerList.innerHTML = `<div class="row">${teamDataCache.get(cacheKey)}</div>`;
                     playerList.style.display = 'block';
                     loadingSpinner.style.display = 'none';
                     return;
@@ -108,7 +140,7 @@
                                 .join('');
                             playerList.innerHTML = `<div class="row">${playerCards}</div>`;
                             playerList.style.display = 'block';
-                            teamDataCache.set(teamName, playerCards);
+                            teamDataCache.set(cacheKey, playerCards);
                         } else {
                             throw new Error(data.error || 'Failed to load team data');
                         }

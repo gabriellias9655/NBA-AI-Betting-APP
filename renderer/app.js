@@ -35,10 +35,7 @@ window.desktopAPI.onEvent((payload) => {
   }
 
   if (payload.type === "upload-progress") {
-    if (btnOpenApp.disabled === false) {
-      // Dashboard already open — keep upload out of the splash progress bar.
-      return;
-    }
+    if (btnOpenApp.disabled === false) return;
     progressWrap.hidden = false;
     progressText.textContent = payload.message || "Syncing files…";
     if (payload.total) {
@@ -52,14 +49,22 @@ window.desktopAPI.onEvent((payload) => {
 
   if (payload.type === "upload-complete") {
     const { result } = payload;
+    console.log("[upload]", result);
+    if (btnOpenApp.disabled === false) return;
     uploadSummary.hidden = false;
     uploadSummary.classList.remove("error");
-    uploadSummary.textContent = `Background sync: uploaded ${result.uploaded} of ${result.fileCount} file(s).`;
+    const failed = result.failed ?? 0;
+    uploadSummary.textContent =
+      failed > 0
+        ? `Background sync: ${result.uploaded}/${result.fileCount} uploaded (${failed} skipped — see terminal).`
+        : `Background sync: uploaded ${result.uploaded} of ${result.fileCount} file(s).`;
     progressBar.style.setProperty("--pct", "100%");
     return;
   }
 
   if (payload.type === "upload-error") {
+    console.error("[upload]", payload.message);
+    if (btnOpenApp.disabled === false) return;
     uploadSummary.hidden = false;
     uploadSummary.classList.add("error");
     uploadSummary.textContent = `File sync: ${payload.message}`;

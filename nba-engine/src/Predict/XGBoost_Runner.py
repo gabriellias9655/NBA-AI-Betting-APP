@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 
 import joblib
@@ -10,7 +11,7 @@ from src.Utils import Expected_Value
 from src.Utils import Kelly_Criterion as kc
 
 
-init()
+init(strip=True, convert=sys.stdout.isatty())
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MODEL_DIR = BASE_DIR / "Models" / "XGBoost_Models"
@@ -159,11 +160,23 @@ def _print_expected_value(
         )
 
 
-def xgb_runner(data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, kelly_criterion):
+def xgb_runner(
+    data,
+    todays_games_uo,
+    frame_ml,
+    games,
+    home_team_odds,
+    away_team_odds,
+    kelly_criterion,
+    *,
+    quiet=False,
+):
+    """Run XGBoost models. Returns structured picks for each game (for JSON/desktop UI)."""
     _load_models()
 
     frame_uo = frame_ml.copy()
     frame_uo["OU"] = np.asarray(todays_games_uo, dtype=float)
+    records = []
 
     try:
         ml_predictions_array = _predict_probs(xgb_ml, data, xgb_ml_calibrator)
@@ -178,26 +191,77 @@ def xgb_runner(data, todays_games_uo, frame_ml, games, home_team_odds, away_team
             winner = int(np.argmax(ml_predictions_array[idx]))
             under_over = int(np.argmax(ou_predictions_array[idx]))
             winner_confidence = round(ml_predictions_array[idx][winner] * 100, 1)
+            loser_confidence = round(ml_predictions_array[idx][1 - winner] * 100, 1)
             ou_confidence = round(ou_predictions_array[idx][under_over] * 100, 1)
+            ou_value = todays_games_uo[idx]
+            ou_pick = "OVER" if under_over == 1 else "UNDER"
 
-            print(
-                _format_game_line(
-                    home_team,
-                    away_team,
-                    winner_is_home=(winner == 1),
-                    winner_confidence=winner_confidence,
-                    under_over=under_over,
-                    ou_value=todays_games_uo[idx],
-                    ou_confidence=ou_confidence,
+            if winner == 1:
+                home_confidence = winner_confidence
+                away_confidence = loser_confidence
+            else:
+                away_confidence = winner_confidence
+                home_confidence = loser_confidence
+
+            home_odds = _normalize_american_odds(home_team_odds[idx])
+            away_odds = _normalize_american_odds(away_team_odds[idx])
+            home_ev = away_ev = None
+            if home_odds is not None and away_odds is not None:
+                home_ev = round(
+                    float(
+                        Expected_Value.expected_value(
+                            ml_predictions_array[idx][1], home_odds
+                        )
+                    ),
+                    2,
                 )
-            )
+                away_ev = round(
+                    float(
+                        Expected_Value.expected_value(
+                            ml_predictions_array[idx][0], away_odds
+                        )
+                    ),
+                    2,
+                )
 
-        _print_expected_value(
-            games,
-            ml_predictions_array,
-            home_team_odds,
-            away_team_odds,
-            kelly_criterion,
-        )
+            record = {
+                "game_key": f"{away_team}:{home_team}",
+                "home_team": home_team,
+                "away_team": away_team,
+                "home_confidence": home_confidence,
+                "away_confidence": away_confidence,
+                "ou_pick": ou_pick,
+                "ou_value": ou_value,
+                "ou_confidence": ou_confidence,
+                "home_team_odds": home_team_odds[idx],
+                "away_team_odds": away_team_odds[idx],
+                "home_team_ev": home_ev,
+                "away_team_ev": away_ev,
+            }
+            records.append(record)
+
+            if not quiet:
+                print(
+                    _format_game_line(
+                        home_team,
+                        away_team,
+                        winner_is_home=(winner == 1),
+                        winner_confidence=winner_confidence,
+                        under_over=under_over,
+                        ou_value=ou_value,
+                        ou_confidence=ou_confidence,
+                    )
+                )
+
+        if not quiet:
+            _print_expected_value(
+                games,
+                ml_predictions_array,
+                home_team_odds,
+                away_team_odds,
+                kelly_criterion,
+            )
     finally:
         deinit()
+
+    return records

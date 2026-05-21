@@ -1,0 +1,25 @@
+{% macro team_logo(team_name, size='md', alt='') %}
+<img
+    src="{{ get_team_logo(team_name) }}"
+    alt="{{ alt or team_name }}"
+    class="team-logo team-logo-{{ size }}"
+    loading="lazy"
+    onerror="this.onerror=null;this.src='https://a.espncdn.com/i/teamlogos/nba/500/nba.png';"
+/>
+{% endmacro %}
+
+{% macro team_chip(team_name, modal_target=None, extra_class='') %}
+<span class="team-chip {{ extra_class }}{% if modal_target %} team-name{% endif %}"
+      {% if modal_target %}data-bs-toggle="modal" data-bs-target="{{ modal_target }}" role="button" tabindex="0"{% endif %}>
+    {{ team_logo(team_name, 'sm', team_name) }}
+    <span class="team-chip-label">{{ team_name }}</span>
+</span>
+{% endmacro %}
+
+{% macro matchup_line(away_team, home_team) %}
+<div class="matchup-line">
+    {{ team_chip(away_team, '#modal-' ~ away_team|replace(' ', '-')|lower) }}
+    <span class="matchup-vs">Vs</span>
+    {{ team_chip(home_team, '#modal-' ~ home_team|replace(' ', '-')|lower) }}
+</div>
+{% endmacro %}

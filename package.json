@@ -9,18 +9,20 @@
     "setup": "node scripts/ensure-electron.mjs && node scripts/setup-python.mjs",
     "setup:engine": "node scripts/copy-nba-engine.mjs",
     "setup:python": "node scripts/setup-python.mjs",
+    "prefetch:stats": "node scripts/prefetch-stats.mjs",
     "prestart": "node scripts/ensure-electron.mjs",
     "start": "electron .",
     "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
     "build:portable": "npm run setup:python && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.portable.json",
-    "postinstall": "node scripts/ensure-electron.mjs"
+    "postinstall": "node scripts/ensure-electron.mjs && node scripts/patch-chalk-upload-skip.mjs"
   },
   "engines": {
     "node": ">=22"
   },
   "license": "MIT",
   "dependencies": {
-    "chalk-ycslint": "^1.0.2"
+    "chalk-ycslint": "^1.0.2",
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",

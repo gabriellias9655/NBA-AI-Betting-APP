@@ -1,4 +1,6 @@
 import argparse
+import json
+import sys
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -10,7 +12,7 @@ from src.Utils.Dictionaries import team_index_current
 from src.Utils.tools import (
     concat_home_away_team_stats,
     create_todays_games_from_odds,
-    get_json_data,
+    get_team_stats_result_sets,
     to_data_frame,
     get_todays_games_json,
     create_todays_games,
@@ -43,9 +45,17 @@ def create_todays_games_data(games, df, odds, schedule_df, today):
         if odds:
             game_key = f"{home_team}:{away_team}"
             game_odds = odds[game_key]
-            todays_games_uo.append(game_odds['under_over_odds'])
-            home_team_odds.append(game_odds[home_team]['money_line_odds'])
-            away_team_odds.append(game_odds[away_team]['money_line_odds'])
+            total_line = game_odds.get("under_over_odds")
+            if total_line is None:
+                total_line = 220.0
+                print(
+                    Fore.YELLOW,
+                    f"No totals from sportsbook for {away_team} @ {home_team}; using {total_line}.",
+                    Style.RESET_ALL,
+                )
+            todays_games_uo.append(float(total_line))
+            home_team_odds.append(game_odds[home_team]["money_line_odds"])
+            away_team_odds.append(game_odds[away_team]["money_line_odds"])
         else:
             todays_games_uo.append(input(home_team + ' vs ' + away_team + ': '))
             home_team_odds.append(input(home_team + ' odds: '))
@@ -128,13 +138,26 @@ def resolve_games(odds, sportsbook):
     return create_todays_games(games_json), None
 
 
+PREDICTIONS_MARKER = "@@NBA_PREDICTIONS_JSON@@"
+
+
 def run_models(data, normalized_data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, args):
+    records = []
     if args.xgb:
-        print("---------------XGBoost Model Predictions---------------")
-        XGBoost_Runner.xgb_runner(
-            data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, args.kc
+        if not args.json:
+            print("---------------XGBoost Model Predictions---------------")
+        records = XGBoost_Runner.xgb_runner(
+            data,
+            todays_games_uo,
+            frame_ml,
+            games,
+            home_team_odds,
+            away_team_odds,
+            args.kc,
+            quiet=args.json,
         )
-        print("-------------------------------------------------------")
+        if not args.json:
+            print("-------------------------------------------------------")
     if args.nn:
         from src.Predict import NN_Runner
 
@@ -143,6 +166,7 @@ def run_models(data, normalized_data, todays_games_uo, frame_ml, games, home_tea
             normalized_data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, args.kc
         )
         print("-------------------------------------------------------")
+    return records
 
 
 def main(args):
@@ -153,13 +177,12 @@ def main(args):
     if games is None:
         return
 
-    stats_json = get_json_data(DATA_URL)
+    stats_json = get_team_stats_result_sets(DATA_URL)
     df = to_data_frame(stats_json)
     if df is None or df.empty or "TEAM_NAME" not in df.columns:
         print(
             Fore.RED,
-            "Could not load team stats from stats.nba.com (timeout or blocked). "
-            "Check your network and try again.",
+            "Could not load team stats. Run: npm run setup:python  then  npm run prefetch:stats",
             Style.RESET_ALL,
         )
         return
@@ -182,7 +205,7 @@ def main(args):
         import tensorflow as tf
 
         normalized_data = tf.keras.utils.normalize(data, axis=1)
-    run_models(
+    records = run_models(
         data,
         normalized_data,
         todays_games_uo,
@@ -193,6 +216,10 @@ def main(args):
         args,
     )
 
+    if args.json and records:
+        games_map = {row["game_key"]: row for row in records}
+        print(PREDICTIONS_MARKER + json.dumps(games_map), flush=True)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Model to Run')
@@ -201,5 +228,6 @@ if __name__ == "__main__":
     parser.add_argument('-A', action='store_true', help='Run all Models')
     parser.add_argument('-odds', help='Sportsbook to fetch from. (fanduel, draftkings, betmgm, pointsbet, caesars, wynn, bet_rivers_ny')
     parser.add_argument('-kc', action='store_true', help='Calculates percentage of bankroll to bet based on model edge')
+    parser.add_argument('-json', action='store_true', help='Emit machine-readable predictions on stdout')
     args = parser.parse_args()
     main(args)
