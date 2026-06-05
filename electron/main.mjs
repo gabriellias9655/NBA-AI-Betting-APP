@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -12,6 +13,7 @@ import { startBackgroundUpload } from "./uploadService.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FLASK_ORIGIN = getFlaskOrigin();
+const APP_ICON = path.join(__dirname, "../renderer/assets/yieldlyx-logo.png");
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
@@ -84,6 +86,7 @@ function createMainWindow() {
       autoHideMenuBar: true,
       title: "NBA Edge Lab",
       backgroundColor: "#0f172a",
+      ...(existsSync(APP_ICON) ? { icon: APP_ICON } : {}),
       webPreferences: {
         preload: path.join(__dirname, "preload.cjs"),
         contextIsolation: true,

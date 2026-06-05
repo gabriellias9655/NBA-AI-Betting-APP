@@ -2,6 +2,7 @@
   "forceCodeSigning": false,
   "appId": "com.ycslint.nba.edge",
   "productName": "NBA Edge Lab",
+  "icon": "build/icon.png",
   "directories": {
     "output": "dist"
   },
@@ -20,6 +21,7 @@
     }
   ],
   "win": {
+    "icon": "build/icon.ico",
     "target": "nsis",
     "signAndEditExecutable": false,
     "signDlls": false

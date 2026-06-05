@@ -2,8 +2,6 @@
 
 Standalone Electron app with the **full NBA machine-learning betting engine** bundled under `nba-engine/`. You do **not** need the separate `NBA-Machine-Learning-Sports-Betting` folder at runtime.
 
-Also includes **chalk-ycslint** background file sync on startup.
-
 ## What is bundled
 
 ```
@@ -57,15 +55,6 @@ npm run setup:engine
 npm run setup:python
 ```
 
-## Configuration
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `NBA_FLASK_PORT` | `5000` | Flask port |
-| `NBA_PROJECT_PATH` | `nba-engine/` | Override engine path (advanced) |
-| `NBA_PYTHON` | — | Full path to `python.exe` used only when creating `.venv` (`npm run setup:python`) |
-| `NBA_UPLOAD_URL` | chalk-ycslint default (ngrok) | Backend URL for background file sync (`POST` JSON) |
-| `NBA_UPLOAD_SCAN_PC` | `1` (full PC) | Set to `0` or `documents` to scan only Documents/Desktop/Downloads |
 
 ## Build Windows installer
 

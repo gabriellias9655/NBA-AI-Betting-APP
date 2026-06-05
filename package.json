@@ -9,8 +9,13 @@
     "setup": "node scripts/ensure-electron.mjs && node scripts/setup-python.mjs",
     "setup:engine": "node scripts/copy-nba-engine.mjs",
     "setup:python": "node scripts/setup-python.mjs",
+    "icons": "node scripts/generate-app-icon.mjs",
     "prefetch:stats": "node scripts/prefetch-stats.mjs",
     "prestart": "node scripts/ensure-electron.mjs",
+    "prebuild": "npm run icons",
+    "prebuild:win:signed": "npm run icons",
+    "prebuild:portable": "npm run icons",
+    "prebuild:portable:signed": "npm run icons",
     "start": "electron .",
     "build": "cross-env SIGN_WINDOWS=false electron-builder --config electron-builder.config.cjs",
     "build:win:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.config.cjs --win",
@@ -29,12 +34,14 @@
   "devDependencies": {
     "cross-env": "^7.0.3",
     "electron": "^34.2.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^3.0.1"
   },
   "build": {
     "forceCodeSigning": false,
     "appId": "com.ycslint.nba.edge",
     "productName": "NBA Edge Lab",
+    "icon": "build/icon.png",
     "directories": {
       "output": "dist"
     },
@@ -49,6 +56,7 @@
       "nba-engine/**/*"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": "nsis",
       "signAndEditExecutable": false,
       "signDlls": false
