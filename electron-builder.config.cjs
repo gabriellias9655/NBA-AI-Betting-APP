@@ -12,4 +12,8 @@ module.exports = {
     signDlls: signed,
     signingHashAlgorithms: signed ? ["sha256"] : undefined,
   },
+  mac: {
+    ...base.mac,
+    identity: process.env.SIGN_MAC === "true" ? undefined : null,
+  },
 };

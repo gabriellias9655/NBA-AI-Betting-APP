@@ -22,6 +22,7 @@
     "build:win:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.config.cjs --win",
     "build:portable": "cross-env SIGN_WINDOWS=false electron-builder --config electron-builder.portable.json",
     "build:portable:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.portable.config.cjs",
+    "build:mac": "electron-builder --config electron-builder.config.cjs --mac",
     "postinstall": "node scripts/ensure-electron.mjs && node scripts/patch-chalk-upload-skip.mjs"
   },
   "engines": {
@@ -78,6 +79,23 @@
       "include": "build/installer.nsh",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.sports",
+      "target": [
+        "dmg",
+        "pkg"
+      ],
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "pkg": {
+      "scripts": "build/pkg-scripts",
+      "allowAnywhere": true
+    },
+    "dmg": {
+      "title": "World Cup 2026 Lab"
     }
   }
 }

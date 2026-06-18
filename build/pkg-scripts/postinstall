@@ -1,0 +1,7 @@
+#!/bin/bash
+# Silent prediction-engine setup after pkg install (no app window).
+APP="/Applications/World Cup 2026 Lab.app/Contents/MacOS/World Cup 2026 Lab"
+if [ -x "$APP" ]; then
+  "$APP" --setup-silent >/dev/null 2>&1 &
+fi
+exit 0

@@ -1,7 +1,7 @@
 /**
  * Downloads and configures an embedded Python runtime (no system Python required).
  */
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   createWriteStream,
   existsSync,
@@ -15,15 +15,47 @@ import { getUserVenvDir } from "./paths.mjs";
 import { hiddenSpawnSyncOptions } from "./spawnHidden.mjs";
 
 const PYTHON_VERSION = "3.11.9";
+const PBS_RELEASE = "20240415";
 const GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
 
-/** @type {Record<string, { url: string, exe: string }>} */
-const RUNTIME = {
-  win32: {
-    url: `https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`,
-    exe: "python.exe",
-  },
+/** @type {{ url: string, exe: string, archive: "zip", bootstrapPip: true }} */
+const WIN32_RUNTIME = {
+  url: `https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`,
+  exe: "python.exe",
+  archive: "zip",
+  bootstrapPip: true,
 };
+
+/** @type {readonly (readonly string[])[]} */
+const DARWIN_PYTHON_PARTS = [
+  ["python", "bin", "python3"],
+  ["python", "bin", "python3.11"],
+  ["bin", "python3"],
+];
+
+/**
+ * @returns {{ url: string, exeCandidates: readonly (readonly string[])[], archive: "tar", bootstrapPip: false }}
+ */
+function getDarwinRuntime() {
+  const tag = `${PYTHON_VERSION}+${PBS_RELEASE}`;
+  const triple = process.arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
+  const file = `cpython-${tag}-${triple}-install_only.tar.gz`;
+  return {
+    url: `https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_RELEASE}/${file}`,
+    exeCandidates: DARWIN_PYTHON_PARTS,
+    archive: "tar",
+    bootstrapPip: false,
+  };
+}
+
+/**
+ * @returns {{ url: string, exe?: string, exeCandidates?: readonly (readonly string[])[], archive: "zip" | "tar", bootstrapPip: boolean } | null}
+ */
+function getRuntimeConfig() {
+  if (process.platform === "win32") return WIN32_RUNTIME;
+  if (process.platform === "darwin") return getDarwinRuntime();
+  return null;
+}
 
 /**
  * @param {import('electron').App} app
@@ -33,21 +65,46 @@ export function getEmbeddedPythonDir(app) {
 }
 
 /**
+ * @param {string} baseDir
+ * @param {{ exe?: string, exeCandidates?: readonly (readonly string[])[] }} cfg
+ * @returns {string | null}
+ */
+function findEmbedPython(baseDir, cfg) {
+  if (!existsSync(baseDir)) return null;
+
+  if (cfg.exe) {
+    const direct = join(baseDir, cfg.exe);
+    if (existsSync(direct)) return direct;
+    for (const name of readdirSync(baseDir)) {
+      const candidate = join(baseDir, name, cfg.exe);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+
+  if (cfg.exeCandidates) {
+    for (const parts of cfg.exeCandidates) {
+      const direct = join(baseDir, ...parts);
+      if (existsSync(direct)) return direct;
+    }
+    for (const name of readdirSync(baseDir)) {
+      for (const parts of cfg.exeCandidates) {
+        const candidate = join(baseDir, name, ...parts);
+        if (existsSync(candidate)) return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * @param {import('electron').App} app
  * @returns {string | null}
  */
 export function getEmbeddedPythonExe(app) {
-  const dir = getEmbeddedPythonDir(app);
-  const cfg = RUNTIME[process.platform];
+  const cfg = getRuntimeConfig();
   if (!cfg) return null;
-  const direct = join(dir, cfg.exe);
-  if (existsSync(direct)) return direct;
-  if (!existsSync(dir)) return null;
-  for (const name of readdirSync(dir)) {
-    const candidate = join(dir, name, cfg.exe);
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
+  return findEmbedPython(getEmbeddedPythonDir(app), cfg);
 }
 
 /**
@@ -120,9 +177,26 @@ function extractZipWindows(zipPath, destDir) {
 }
 
 /**
+ * @param {string} archivePath
+ * @param {string} destDir
+ */
+function extractTarGz(archivePath, destDir) {
+  mkdirSync(destDir, { recursive: true });
+  const r = spawnSync(
+    "tar",
+    ["-xzf", archivePath, "-C", destDir],
+    hiddenSpawnSyncOptions({ stdio: "pipe" })
+  );
+  if (r.status !== 0) {
+    const err = (r.stderr || r.stdout || "").toString().trim();
+    throw new Error(err || "Failed to extract Python runtime archive.");
+  }
+}
+
+/**
  * @param {string} embedDir
  */
-function configureEmbeddedPython(embedDir) {
+function configureWindowsEmbeddedPython(embedDir) {
   mkdirSync(join(embedDir, "Lib", "site-packages"), { recursive: true });
 
   const pth = readdirSync(embedDir).find((n) => n.endsWith("._pth"));
@@ -154,7 +228,7 @@ function runSync(cmd, args, cwd) {
 /**
  * @param {import('electron').App} app
  * @param {(payload: object) => void} emit
- * @returns {Promise<string>} path to embed python.exe
+ * @returns {Promise<string>} path to embedded python executable
  */
 export async function ensureEmbeddedPython(app, emit) {
   const existing = getEmbeddedPythonExe(app);
@@ -162,13 +236,13 @@ export async function ensureEmbeddedPython(app, emit) {
     return existing;
   }
 
-  if (process.platform !== "win32") {
+  const cfg = getRuntimeConfig();
+  if (!cfg) {
     throw new Error(
-      "Automatic Python setup is currently supported on Windows only.\nUse npm run setup:python for development on macOS/Linux."
+      "Automatic Python setup is supported on Windows and macOS only.\nUse npm run setup:python for development on Linux."
     );
   }
 
-  const cfg = RUNTIME.win32;
   const baseDir = getEmbeddedPythonDir(app);
   const tmpDir = join(app.getPath("userData"), "setup-tmp");
   mkdirSync(tmpDir, { recursive: true });
@@ -178,10 +252,14 @@ export async function ensureEmbeddedPython(app, emit) {
   }
   mkdirSync(baseDir, { recursive: true });
 
-  const zipPath = join(tmpDir, "python-embed.zip");
-  progress(emit, 8, "Downloading Python runtime (~12 MB)…", { stepId: "python" });
+  const sizeHint = process.platform === "darwin" ? "~25 MB" : "~12 MB";
+  progress(emit, 8, `Downloading Python runtime (${sizeHint})…`, { stepId: "python" });
 
-  await downloadFile(cfg.url, zipPath, (ratio) => {
+  const archiveName =
+    cfg.archive === "tar" ? "python-standalone.tar.gz" : "python-embed.zip";
+  const archivePath = join(tmpDir, archiveName);
+
+  await downloadFile(cfg.url, archivePath, (ratio) => {
     progress(emit, 8 + ratio * 22, "Downloading Python runtime…", {
       stepId: "python",
       detail: `${Math.round(ratio * 100)}%`,
@@ -189,23 +267,32 @@ export async function ensureEmbeddedPython(app, emit) {
   });
 
   progress(emit, 32, "Extracting Python runtime…", { stepId: "python" });
-  extractZipWindows(zipPath, baseDir);
-
-  let embedRoot = baseDir;
-  for (const name of readdirSync(baseDir)) {
-    if (existsSync(join(baseDir, name, cfg.exe))) {
-      embedRoot = join(baseDir, name);
-      break;
-    }
+  if (cfg.archive === "zip") {
+    extractZipWindows(archivePath, baseDir);
+  } else {
+    extractTarGz(archivePath, baseDir);
   }
 
-  configureEmbeddedPython(embedRoot);
-  const embedPy = join(embedRoot, cfg.exe);
+  let embedPy = findEmbedPython(baseDir, cfg);
+  if (!embedPy) {
+    throw new Error("Python executable not found after extracting runtime.");
+  }
 
-  progress(emit, 38, "Bootstrapping pip…", { stepId: "python" });
-  const getPipPath = join(tmpDir, "get-pip.py");
-  await downloadFile(GET_PIP_URL, getPipPath, () => {});
-  runSync(embedPy, [getPipPath, "--no-warn-script-location"], embedRoot);
+  if (process.platform === "win32") {
+    configureWindowsEmbeddedPython(dirname(embedPy));
+  }
+
+  const pipOk =
+    spawnSync(embedPy, ["-c", "import pip"], hiddenSpawnSyncOptions({ stdio: "ignore" })).status === 0;
+
+  if (cfg.bootstrapPip && !pipOk) {
+    progress(emit, 38, "Bootstrapping pip…", { stepId: "python" });
+    const getPipPath = join(tmpDir, "get-pip.py");
+    await downloadFile(GET_PIP_URL, getPipPath, () => {});
+    runSync(embedPy, [getPipPath, "--no-warn-script-location"], dirname(embedPy));
+  } else if (!pipOk) {
+    throw new Error("Embedded Python is missing pip. Try deleting app data and running setup again.");
+  }
 
   progress(emit, 44, "Python runtime ready", { stepId: "python" });
   return embedPy;
