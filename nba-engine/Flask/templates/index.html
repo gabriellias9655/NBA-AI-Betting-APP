@@ -4,14 +4,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NBA Edge Lab</title>
+    <title>World Cup 2026 Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="{% if embedded %}embedded-app{% endif %}">
+    {% include '_desktop_titlebar.html' %}
     {% set fanduel_games = data.get('fanduel') or {} %}
     {% set games_count = fanduel_games|length %}
     <div class="page">
@@ -24,15 +25,15 @@
         <header class="site-header">
             <nav class="nav">
                 <div class="brand">
-                    <div class="brand-mark">NBA</div>
+                    <img class="brand-icon" src="{{ url_for('static', filename='app-icon.png') }}" alt="World Cup trophy" />
                     <div class="brand-text">
-                        Edge Lab
-                        <small>Machine Learning Picks</small>
+                        World Cup 2026
+                        <small>Prediction Lab</small>
                     </div>
                 </div>
                 {% if not embedded %}
                 <div class="nav-links">
-                    <a href="#picks">Today's Board</a>
+                    <a href="#picks">Match Board</a>
                     <a href="#stack">Model Stack</a>
                     <a href="#insights">Market Pulse</a>
                 </div>
@@ -47,20 +48,20 @@
         <main>
             <section class="hero">
                 <div class="hero-copy reveal">
-                    <div class="eyebrow">NBA Machine Learning</div>
-                    <h1>Sharper NBA edges, distilled from every possession.</h1>
+                    <div class="eyebrow">FIFA World Cup 2026</div>
+                    <h1>Smarter World Cup picks, powered by nation-level models.</h1>
                     <p>
-                        Model-driven win probabilities and totals picks, enriched with sportsbook odds,
-                        expected value, and bankroll guidance. Updated daily for today's slate.
+                        Match win probabilities and goals totals (Over/Under), enriched with sportsbook odds,
+                        expected value, and tournament context for USA · Mexico · Canada 2026.
                     </p>
                     <div class="hero-actions">
-                        <a class="btn btn-primary" href="#picks">Explore Today's Board</a>
+                        <a class="btn btn-primary" href="#picks">Explore Match Board</a>
                         <a class="btn btn-ghost" href="#insights">See Market Pulse</a>
                     </div>
                     <div class="hero-metrics">
                         <div class="metric-card">
-                            <span>Today's slate</span>
-                            <strong>{{ games_count }} matchups</strong>
+                            <span>Tournament fixtures</span>
+                            <strong>{{ games_count }} matches</strong>
                         </div>
                         <div class="metric-card">
                             <span>Sportsbooks</span>
@@ -68,24 +69,38 @@
                         </div>
                         <div class="metric-card">
                             <span>Model focus</span>
-                            <strong>Moneyline + Totals</strong>
+                            <strong>1X2 + Goals O/U</strong>
                         </div>
                     </div>
                 </div>
-                <div class="hero-panel reveal" data-delay="120">
+                <div class="hero-visual reveal" data-delay="120">
+                    <div class="hero-image-wrap">
+                        <img
+                            class="hero-image-main"
+                            src="{{ url_for('static', filename='hero-world-cup.png') }}"
+                            alt="World Cup 2026 stadium with golden trophy and host nation flags"
+                        />
+                        <div class="hero-image-overlay"></div>
+                        <img
+                            class="hero-image-badge"
+                            src="{{ url_for('static', filename='app-icon.png') }}"
+                            alt=""
+                        />
+                    </div>
+                <div class="hero-panel">
                     <div>
                         <div class="eyebrow">Slate snapshot</div>
-                        <h3 class="panel-title">{{ today }} / Live model board</h3>
-                        <p>Confidence-weighted projections with EV overlays and totals lean.</p>
+                        <h3 class="panel-title">{{ today }} / World Cup board</h3>
+                        <p>Elo + goals model with EV overlays and totals lean.</p>
                     </div>
                     <div class="pulse-grid">
                         <div class="pulse-item">
-                            <span class="eyebrow">ML Accuracy</span>
-                            <strong>~69%</strong>
+                            <span class="eyebrow">1X2 model</span>
+                            <strong>Elo-based</strong>
                         </div>
                         <div class="pulse-item">
-                            <span class="eyebrow">Totals Accuracy</span>
-                            <strong>~55%</strong>
+                            <span class="eyebrow">Goals model</span>
+                            <strong>Poisson O/U</strong>
                         </div>
                         <div class="pulse-item">
                             <span class="eyebrow">Kelly Enabled</span>
@@ -94,14 +109,15 @@
                     </div>
                     <div class="chip">Updated {{ today }}</div>
                 </div>
+                </div>
             </section>
 
             <section id="insights" class="section">
                 <div class="section-header">
                     <div>
                         <div class="eyebrow">Market pulse</div>
-                        <h2>Today's model signals at a glance.</h2>
-                        <p>Live moneyline lean, totals pick, and expected value from FanDuel lines ({{ today }}).</p>
+                        <h2>Today's World Cup signals at a glance.</h2>
+                        <p>Live match lean, goals pick, and expected value from FanDuel lines ({{ today }}).</p>
                     </div>
                     <div class="chip">{{ market_pulse.games }} matchup{{ 's' if market_pulse.games != 1 else '' }}</div>
                 </div>
@@ -196,9 +212,9 @@
             <section id="picks" class="section">
                 <div class="section-header">
                     <div>
-                        <div class="eyebrow">Today's Board</div>
-                        <h2>Model picks for every matchup.</h2>
-                        <p>Click any team name to see roster details and player form.</p>
+                        <div class="eyebrow">Match Board</div>
+                        <h2>Model picks for every World Cup fixture.</h2>
+                        <p>Click any nation to see squad details and player form.</p>
                     </div>
                     <div class="chip">{{ today }}</div>
                 </div>
@@ -206,17 +222,15 @@
                 <div class="picks-grid">
                     {% if games_count == 0 %}
                     <div class="empty-board reveal">
-                        <h3>No matchups loaded</h3>
+                        <h3>No fixtures loaded</h3>
                         {% if load_error %}
                         <p>{{ load_error }}</p>
                         {% else %}
                         <p>
-                            Predictions did not run or could not be read. Common causes: stats.nba.com blocked or
-                            timed out, no odds totals for today’s games, or the model subprocess failed.
+                            Predictions could not be loaded. Check network access to ESPN or sportsbook feeds.
                         </p>
                         {% endif %}
-                        <p class="muted">Run <code>npm run setup:python</code> then <code>npm start</code>.
-                            Team stats use <code>nba_api</code> and bundled offline data — not stats.nba.com directly.</p>
+                        <p class="muted">Restart the app — demo fixtures load when no live ESPN board is available.</p>
                     </div>
                     {% endif %}
                     {% for game_key, fd_game in fanduel_games.items() %}
@@ -251,7 +265,7 @@
                         {% set model_home_conf = fd_game.home_confidence|default('0')|float %}
                         <div class="model-snapshot">
                             <div class="model-snapshot-item">
-                                <span class="model-snapshot-label">Model win %</span>
+                                <span>Model win %</span>
                                 <span>{{ away_team }} {{ model_away_conf|round(1) }}% · {{ home_team }} {{ model_home_conf|round(1) }}%</span>
                             </div>
                             <div class="model-snapshot-item">
@@ -317,38 +331,39 @@
                 <div class="section-header">
                     <div>
                         <div class="eyebrow">Model stack</div>
-                        <h2>From raw stats to ready-to-bet predictions.</h2>
-                        <p>A compact pipeline that goes from daily NBA data to live picks.</p>
+                        <h2>From nation stats to World Cup predictions.</h2>
+                        <p>Elo ratings, goals form, and live soccer odds for FIFA World Cup 2026.</p>
                     </div>
-                    <div class="chip">XGBoost + Neural Net</div>
+                    <div class="chip">Elo + Poisson</div>
                 </div>
                 <div class="feature-grid">
                     <div class="feature-card reveal">
                         <h3>Ingest</h3>
-                        <p>Daily team stats and sportsbook odds flow into SQLite datasets.</p>
+                        <p>FIFA nation ratings, goals data, and sportsbook soccer lines.</p>
                     </div>
                     <div class="feature-card reveal" data-delay="90">
-                        <h3>Feature build</h3>
-                        <p>Matchups combine team baselines, days of rest, and totals data.</p>
+                        <h3>Fixtures</h3>
+                        <p>ESPN World Cup schedule with demo fallback for off-days.</p>
                     </div>
                     <div class="feature-card reveal" data-delay="180">
-                        <h3>Train</h3>
-                        <p>XGBoost and neural nets learn win probabilities and totals leans.</p>
+                        <h3>Predict</h3>
+                        <p>Elo match outcomes and Poisson goals totals (Over/Under).</p>
                     </div>
                     <div class="feature-card reveal" data-delay="270">
                         <h3>Deploy</h3>
-                        <p>Live odds run through models to surface EV and Kelly sizing.</p>
+                        <p>Live odds merged per book to surface EV on each nation.</p>
                     </div>
                 </div>
             </section>
         </main>
 
         <footer class="footer">
-            Built for sharper NBA decisions. Data + models update daily.
+            Built for FIFA World Cup 2026. USA · Mexico · Canada.
         </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='desktop.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
     {% include 'player_modal.html' %}
     {% include 'team_modal.html' %}

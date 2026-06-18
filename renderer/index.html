@@ -5,36 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'"
     />
-    <title>NBA Edge Lab</title>
+    <title>World Cup 2026 Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="card">
-      <div class="brand">
-        <img class="logo-image" src="assets/yieldlyx-logo.png" alt="YieldlyX logo" />
-        <div>
-          <h1>NBA Edge Lab</h1>
-          <p class="muted">Machine learning picks · desktop edition</p>
+    <div class="titlebar">
+      <div class="titlebar-drag">
+        <img class="titlebar-icon" src="assets/app-icon.png" alt="" />
+        <span class="titlebar-title">World Cup 2026 Lab</span>
+      </div>
+      <div class="titlebar-controls">
+        <button type="button" class="tb-btn" id="tbMin" aria-label="Minimize">&#8722;</button>
+        <button type="button" class="tb-btn" id="tbMax" aria-label="Maximize">&#9633;</button>
+        <button type="button" class="tb-btn tb-close" id="tbClose" aria-label="Close">&#10005;</button>
+      </div>
+    </div>
+
+    <div class="scene">
+      <div class="sky"></div>
+      <div class="pitch"></div>
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+
+      <section class="hero-banner" aria-label="World Cup 2026">
+        <div class="hero-banner-frame">
+          <img
+            class="hero-image"
+            src="assets/hero-world-cup.png"
+            alt="World Cup 2026 stadium with golden trophy and host nation flags"
+          />
+          <div class="hero-image-shine"></div>
         </div>
-      </div>
+        <div class="hero-badge">
+          <img class="hero-badge-icon" src="assets/app-icon.png" alt="" />
+        </div>
+      </section>
 
-      <p id="status" class="status">Starting…</p>
+      <main class="card glass">
+        <div class="card-badge">FIFA 2026 · USA · MEX · CAN</div>
+        <h1>World Cup Prediction Lab</h1>
+        <p class="lead">First launch downloads Python and prediction libraries automatically — no install required.</p>
 
-      <div id="progressWrap" class="progress-wrap" hidden>
-        <div class="progress-bar" id="progressBar"></div>
-        <p id="progressText" class="progress-text"></p>
-      </div>
+        <p id="status" class="status">Starting engine…</p>
 
-      <div class="actions">
-        <button type="button" id="btnOpenApp" class="btn primary" disabled>
-          Open dashboard now
-        </button>
-      </div>
+        <div id="setupPanel" class="setup-panel" hidden>
+          <p class="setup-heading">Setting up prediction engine</p>
+          <ul id="setupSteps" class="setup-steps"></ul>
+          <p id="setupDetail" class="setup-detail"></p>
+        </div>
 
-      <p id="uploadSummary" class="summary" hidden></p>
-    </main>
+        <div id="progressWrap" class="progress-wrap" hidden>
+          <div class="progress-track">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <p id="progressText" class="progress-text"></p>
+        </div>
+
+        <div class="actions">
+          <button type="button" id="btnOpenApp" class="btn primary" disabled>
+            Open dashboard
+          </button>
+        </div>
+
+        <p id="uploadSummary" class="summary" hidden></p>
+      </main>
+    </div>
+
+    <script src="titlebar.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

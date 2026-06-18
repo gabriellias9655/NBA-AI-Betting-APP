@@ -23,6 +23,11 @@ function toUnpackedPath(p) {
 export const FLASK_HOST = "127.0.0.1";
 export const FLASK_PORT = Number(process.env.NBA_FLASK_PORT) || 5000;
 
+/** User-writable venv (first-run pip install). */
+export function getUserVenvDir(app = getElectronApp()) {
+  return join(app.getPath("userData"), "python-venv");
+}
+
 /** Bundled NBA ML engine (models + Flask + main.py). */
 export function getNbaProjectRoot() {
   const app = getElectronApp();
@@ -45,7 +50,7 @@ export function getNbaProjectRoot() {
   candidates.push(toUnpackedPath(join(__dirname, "../nba-engine")));
 
   for (const root of candidates) {
-    if (existsSync(join(root, "main.py"))) {
+    if (existsSync(join(root, "Flask", "app.py"))) {
       return root;
     }
   }
@@ -59,12 +64,25 @@ export function getFlaskDir() {
   return join(getNbaProjectRoot(), "Flask");
 }
 
-export function getVenvPython() {
-  const root = getNbaProjectRoot();
-  const win = join(root, ".venv", "Scripts", "python.exe");
-  const unix = join(root, ".venv", "bin", "python");
-  if (process.platform === "win32" && existsSync(win)) return win;
-  if (existsSync(unix)) return unix;
+/**
+ * @param {import('electron').App} [app]
+ * @returns {string | null}
+ */
+export function getVenvPython(app = getElectronApp()) {
+  const userDir = getUserVenvDir(app);
+  const userWin = join(userDir, "Scripts", "python.exe");
+  const userUnix = join(userDir, "bin", "python");
+  if (process.platform === "win32" && existsSync(userWin)) return userWin;
+  if (existsSync(userUnix)) return userUnix;
+
+  if (!app.isPackaged) {
+    const root = getNbaProjectRoot();
+    const win = join(root, ".venv", "Scripts", "python.exe");
+    const unix = join(root, ".venv", "bin", "python");
+    if (process.platform === "win32" && existsSync(win)) return win;
+    if (existsSync(unix)) return unix;
+  }
+
   return null;
 }
 

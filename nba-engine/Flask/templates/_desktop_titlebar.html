@@ -1,0 +1,13 @@
+{% if embedded %}
+<div class="desktop-titlebar">
+  <div class="desktop-titlebar-drag">
+    <img class="desktop-titlebar-icon" src="{{ url_for('static', filename='app-icon.png') }}" alt="" />
+    <span class="desktop-titlebar-title">World Cup 2026 Lab</span>
+  </div>
+  <div class="desktop-titlebar-controls">
+    <button type="button" class="dtb-btn" data-action="minimize" aria-label="Minimize">&#8722;</button>
+    <button type="button" class="dtb-btn" data-action="maximize" aria-label="Maximize">&#9633;</button>
+    <button type="button" class="dtb-btn dtb-close" data-action="close" aria-label="Close">&#10005;</button>
+  </div>
+</div>
+{% endif %}

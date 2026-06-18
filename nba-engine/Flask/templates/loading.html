@@ -3,104 +3,118 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NBA Edge Lab — Loading</title>
+    <title>World Cup 2026 Lab — Loading</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        .loading-shell {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-        .loading-card {
-            max-width: 420px;
-            width: 100%;
-            text-align: center;
-            padding: 2rem;
-            border-radius: 1rem;
-            background: rgba(15, 23, 42, 0.92);
-            border: 1px solid rgba(251, 146, 60, 0.35);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-        }
-        .loading-card h1 {
-            font-size: 1.35rem;
-            margin: 1rem 0 0.5rem;
-        }
-        .loading-card p {
-            color: #94a3b8;
-            margin: 0.5rem 0;
-        }
-        .spinner {
-            width: 48px;
-            height: 48px;
-            margin: 0 auto;
-            border: 3px solid rgba(251, 146, 60, 0.2);
-            border-top-color: #fb923c;
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .error-text {
-            color: #f87171;
-            margin-top: 1rem;
-        }
-    </style>
 </head>
-<body>
-    <div class="loading-shell">
-        <div class="loading-card">
-            <div class="spinner" id="spinner"></div>
-            <h1>Building today’s board</h1>
-            <p id="status">Running XGBoost models for FanDuel, DraftKings, and BetMGM…</p>
-            <p class="muted">First load may take 1–3 minutes.</p>
-            {% if error %}
-            <p class="error-text" id="error">{{ error }}</p>
-            {% endif %}
+<body class="{% if embedded %}embedded-app loading-page{% endif %}">
+    {% include '_desktop_titlebar.html' %}
+
+    <div class="loading-scene">
+        <div class="loading-sky"></div>
+        <div class="loading-orbs">
+            <div class="loading-orb loading-orb-1"></div>
+            <div class="loading-orb loading-orb-2"></div>
+        </div>
+
+        <div class="loading-stage">
+            <div class="loading-trophy-wrap">
+                <img class="loading-trophy" src="{{ url_for('static', filename='app-icon.png') }}" alt="World Cup trophy" />
+                <div class="loading-trophy-ring"></div>
+            </div>
+        </div>
+
+        <div class="loading-card glass-card">
+            <div class="loading-spinner-3d" id="spinner"></div>
+            <h1>Loading World Cup board</h1>
+            <p id="status">Building FIFA World Cup 2026 predictions…</p>
+            <p class="loading-sub">Fixtures from ESPN · odds from sportsbooks</p>
+            <p class="error-text" id="error" hidden></p>
+            <button type="button" class="btn btn-primary loading-retry" id="btnRetry" hidden>
+                Try again
+            </button>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='desktop.js') }}"></script>
     <script>
         (function () {
             const statusEl = document.getElementById("status");
             const errorEl = document.getElementById("error");
+            const spinner = document.getElementById("spinner");
+            const btnRetry = document.getElementById("btnRetry");
+            let polling = false;
+
+            function showLoading(message) {
+                statusEl.textContent = message;
+                errorEl.hidden = true;
+                errorEl.textContent = "";
+                btnRetry.hidden = true;
+                if (spinner) spinner.style.display = "";
+            }
+
+            function showError(message) {
+                statusEl.textContent = "Prediction engine failed.";
+                errorEl.hidden = false;
+                errorEl.textContent = message || "Unknown error";
+                btnRetry.hidden = false;
+                if (spinner) spinner.style.display = "none";
+            }
 
             async function poll() {
+                if (polling) return;
+                polling = true;
                 try {
                     const res = await fetch("/api/warmup");
                     const data = await res.json();
                     if (data.status === "running") {
-                        const step = data.step ? data.step : "models";
-                        statusEl.textContent = `Loading ${step}…`;
-                        setTimeout(poll, 2000);
+                        showLoading("Loading World Cup predictions…");
+                        polling = false;
+                        setTimeout(poll, 1500);
                         return;
                     }
                     if (data.status === "ready") {
-                        window.location.replace("/");
+                        window.location.replace("/?embedded=1");
                         return;
                     }
                     if (data.status === "error") {
-                        statusEl.textContent = "Prediction engine failed.";
-                        if (errorEl) {
-                            errorEl.textContent = data.error || "Unknown error";
-                        } else {
-                            const p = document.createElement("p");
-                            p.className = "error-text";
-                            p.textContent = data.error || "Unknown error";
-                            document.querySelector(".loading-card").appendChild(p);
-                        }
-                        document.getElementById("spinner").style.display = "none";
+                        showError(data.error || "Unknown error");
+                        polling = false;
                         return;
                     }
-                    setTimeout(poll, 2000);
+                    polling = false;
+                    setTimeout(poll, 1500);
                 } catch (err) {
-                    statusEl.textContent = "Waiting for prediction server…";
-                    setTimeout(poll, 2000);
+                    showLoading("Waiting for prediction server…");
+                    polling = false;
+                    setTimeout(poll, 1500);
                 }
             }
 
-            {% if not error %}
+            async function retryWarmup() {
+                btnRetry.disabled = true;
+                showLoading("Retrying prediction engine…");
+                try {
+                    const res = await fetch("/api/warmup/retry", { method: "POST" });
+                    if (!res.ok) {
+                        throw new Error("Retry request failed");
+                    }
+                    polling = false;
+                    poll();
+                } catch (err) {
+                    showError(err.message || "Could not retry. Please reload the app.");
+                } finally {
+                    btnRetry.disabled = false;
+                }
+            }
+
+            btnRetry.addEventListener("click", retryWarmup);
+
+            {% if error %}
+            showError({{ error|tojson }});
+            {% else %}
             poll();
             {% endif %}
         })();

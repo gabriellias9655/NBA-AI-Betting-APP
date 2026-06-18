@@ -1,6 +1,11 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { createRequire } from "node:module";
 import { getFlaskDir, getNbaProjectRoot, getVenvPython, FLASK_HOST, FLASK_PORT } from "./paths.mjs";
+import { hiddenSpawnOptions } from "./spawnHidden.mjs";
+
+const require = createRequire(import.meta.url);
 
 /** @type {import("node:child_process").ChildProcess | null} */
 let flaskProcess = null;
@@ -8,28 +13,24 @@ let flaskProcess = null;
 let lastFlaskLog = "";
 
 /**
- * Always use nba-engine/.venv — system Python will not have Flask/TensorFlow.
+ * Python from first-run venv (userData) or dev .venv.
  * @returns {string}
  */
 export function resolvePythonCommand() {
-  const venvPy = getVenvPython();
+  const app = require("electron").app;
+  const venvPy = getVenvPython(app);
   if (venvPy && existsSync(venvPy)) {
     return venvPy;
   }
 
-  const root = getNbaProjectRoot();
-  const hint =
-    process.platform === "win32"
-      ? `Open a terminal in the app folder and run:\n  npm run setup:python\n\nThat creates ${root}\\.venv and installs Flask, XGBoost, TensorFlow, etc.`
-      : `Run: npm run setup:python\n\nThat creates ${root}/.venv with all dependencies.`;
+  const hint = app.isPackaged
+    ? "First-run setup did not finish. Restart the app with an internet connection to download the Python runtime."
+    : `Run: npm run setup:python\n\nOr restart the packaged app to auto-download Python on first launch.`;
 
-  throw new Error(
-    `Bundled Python environment not found (Flask and ML libs live in .venv).\n\n${hint}`
-  );
+  throw new Error(`Python prediction environment not ready.\n\n${hint}`);
 }
 
 export function validateNbaSetup() {
-  const root = getNbaProjectRoot();
   const flaskDir = getFlaskDir();
 
   if (!existsSync(flaskDir)) {
@@ -38,12 +39,9 @@ export function validateNbaSetup() {
   if (!existsSync(`${flaskDir}/app.py`)) {
     throw new Error("nba-engine/Flask/app.py not found.");
   }
-  if (!existsSync(`${root}/main.py`)) {
-    throw new Error("nba-engine/main.py not found.");
-  }
-  const modelsDir = `${root}/Models/XGBoost_Models`;
-  if (!existsSync(modelsDir)) {
-    console.warn("[nba] XGBoost models missing in nba-engine/Models/XGBoost_Models");
+  const bootstrap = join(getNbaProjectRoot(), "Data", "wc_teams_bootstrap.json");
+  if (!existsSync(bootstrap)) {
+    console.warn("[wc] wc_teams_bootstrap.json missing — team data may be incomplete.");
   }
 }
 
@@ -69,7 +67,7 @@ export function startFlaskServer() {
       "--no-debugger",
       "--no-reload",
     ],
-    {
+    hiddenSpawnOptions({
       cwd: flaskDir,
       env: {
         ...process.env,
@@ -77,7 +75,7 @@ export function startFlaskServer() {
         PYTHONUNBUFFERED: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
-    }
+    })
   );
 
   flaskProcess = proc;

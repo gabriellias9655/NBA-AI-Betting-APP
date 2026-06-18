@@ -1,4 +1,4 @@
-"""NBA roster + player info via ESPN (no RapidAPI subscription required)."""
+"""World Cup squad + player info via ESPN fifa.world API."""
 import os
 from typing import Any
 
@@ -14,40 +14,41 @@ _ESPN_HEADERS = {
     "Accept": "application/json",
 }
 
-# Full team names used in the app → ESPN team ids
-ESPN_TEAM_ID_BY_NAME = {
-    "Atlanta Hawks": 1,
-    "Boston Celtics": 2,
-    "Brooklyn Nets": 17,
-    "Charlotte Hornets": 30,
-    "Chicago Bulls": 4,
-    "Cleveland Cavaliers": 5,
-    "Dallas Mavericks": 6,
-    "Denver Nuggets": 7,
-    "Detroit Pistons": 8,
-    "Golden State Warriors": 9,
-    "Houston Rockets": 10,
-    "Indiana Pacers": 11,
-    "LA Clippers": 12,
-    "Los Angeles Clippers": 12,
-    "Los Angeles Lakers": 13,
-    "Memphis Grizzlies": 29,
-    "Miami Heat": 14,
-    "Milwaukee Bucks": 15,
-    "Minnesota Timberwolves": 16,
-    "New Orleans Pelicans": 3,
-    "New York Knicks": 18,
-    "Oklahoma City Thunder": 25,
-    "Orlando Magic": 19,
-    "Philadelphia 76ers": 20,
-    "Phoenix Suns": 21,
-    "Portland Trail Blazers": 22,
-    "Sacramento Kings": 23,
-    "San Antonio Spurs": 24,
-    "Toronto Raptors": 28,
-    "Utah Jazz": 26,
-    "Washington Wizards": 27,
-}
+ESPN_WC_TEAMS_URL = (
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/teams"
+)
+_wc_team_id_cache: dict[str, str] | None = None
+
+
+def _load_wc_team_ids() -> dict[str, str]:
+    global _wc_team_id_cache
+    if _wc_team_id_cache is not None:
+        return _wc_team_id_cache
+    mapping: dict[str, str] = {}
+    try:
+        response = requests.get(
+            ESPN_WC_TEAMS_URL,
+            headers=_ESPN_HEADERS,
+            params={"limit": 100},
+            timeout=20,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        teams = payload.get("teams") or []
+        if not teams:
+            for sport in payload.get("sports", []):
+                for league in sport.get("leagues", []):
+                    teams.extend(league.get("teams", []))
+        for entry in teams:
+            team = entry.get("team") or entry
+            name = team.get("displayName") or team.get("name")
+            tid = team.get("id")
+            if name and tid:
+                mapping[name] = str(tid)
+    except requests.RequestException as exc:
+        print(f"[roster] WC team list failed: {exc}")
+    _wc_team_id_cache = mapping
+    return mapping
 
 
 def _injury_label(athlete: dict) -> str:
@@ -77,7 +78,7 @@ def _format_roster_player(athlete: dict) -> dict[str, Any]:
         "name": athlete.get("displayName") or athlete.get("fullName"),
         "shortName": athlete.get("shortName"),
         "headshot": headshot
-        or f"https://a.espncdn.com/i/headshots/nba/players/full/{athlete.get('id')}.png",
+        or "https://a.espncdn.com/i/headshots/soccer/players/full/0.png",
         "injury": _injury_label(athlete),
         "position": position.get("abbreviation") or position.get("name"),
         "height": athlete.get("displayHeight"),
@@ -91,14 +92,23 @@ def _format_roster_player(athlete: dict) -> dict[str, Any]:
 
 
 def fetch_team_roster(team_name: str) -> dict[str, Any]:
-    team_id = ESPN_TEAM_ID_BY_NAME.get(team_name)
+    team_ids = _load_wc_team_ids()
+    team_id = team_ids.get(team_name)
+    if team_id is None:
+        for name, tid in team_ids.items():
+            if name.lower() == team_name.lower():
+                team_id = tid
+                break
     if team_id is None:
         return {
             "success": False,
-            "error": f"Unknown team for roster lookup: {team_name}",
+            "error": f"Unknown nation for squad lookup: {team_name}",
         }
 
-    url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{team_id}/roster"
+    url = (
+        f"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/"
+        f"teams/{team_id}/roster"
+    )
     try:
         response = requests.get(url, headers=_ESPN_HEADERS, timeout=20)
         response.raise_for_status()
@@ -116,7 +126,7 @@ def fetch_team_roster(team_name: str) -> dict[str, Any]:
 
 def _fetch_athlete_core(player_id: str) -> dict[str, Any]:
     url = (
-        "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/"
+        "https://sports.core.api.espn.com/v2/sports/soccer/leagues/fifa.world/"
         f"athletes/{player_id}"
     )
     try:
@@ -145,7 +155,7 @@ def fetch_player_overview(player_id: str) -> dict[str, Any]:
     athlete = _fetch_athlete_core(player_id)
 
     overview_url = (
-        "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/"
+        "https://site.web.api.espn.com/apis/common/v3/sports/soccer/fifa.world/"
         f"athletes/{player_id}/overview"
     )
     try:
@@ -181,7 +191,7 @@ def fetch_player_overview(player_id: str) -> dict[str, Any]:
             opp = event.get("opponent") or {}
             opponent = opp.get("abbreviation") or opp.get("displayName") or ""
             opp_logo = get_team_logo_by_abbr(opponent)
-            if opp_logo.endswith("/nba.png") and opp.get("displayName"):
+            if opp_logo.endswith("/un.png") and opp.get("displayName"):
                 opp_logo = get_team_logo_url(opp.get("displayName"))
             games.append(
                 {
@@ -211,7 +221,7 @@ def fetch_player_overview(player_id: str) -> dict[str, Any]:
     if isinstance(headshot, dict):
         headshot = headshot.get("href")
     if not headshot and athlete.get("id"):
-        headshot = f"https://a.espncdn.com/i/headshots/nba/players/full/{athlete.get('id')}.png"
+        headshot = "https://a.espncdn.com/i/headshots/soccer/players/full/0.png"
 
     college = athlete.get("college")
     if isinstance(college, dict):

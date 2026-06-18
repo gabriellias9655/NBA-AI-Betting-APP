@@ -25,10 +25,18 @@ _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 _prediction_cache = {}
 
 
+def _american_ev(prob_win: float, american_odds: int) -> float:
+    """Expected value in units per $100 wager (same as legacy Expected_Value module)."""
+    p_loss = 1.0 - prob_win
+    if american_odds > 0:
+        payout = american_odds
+    else:
+        payout = (100 / (-1 * american_odds)) * 100
+    return round((prob_win * payout) - (p_loss * 100), 2)
+
+
 def _apply_book_odds(base_game, odds_by_game):
     """Attach sportsbook-specific lines/odds and EV; model win % stays from base game."""
-    from src.Utils import Expected_Value
-
     merged = dict(base_game)
     away = merged.get("away_team")
     home = merged.get("home_team")
@@ -54,17 +62,15 @@ def _apply_book_odds(base_game, odds_by_game):
     home_p = _as_float(merged.get("home_confidence"))
     if away_p is not None and merged.get("away_team_odds") is not None:
         try:
-            merged["away_team_ev"] = round(
-                Expected_Value.expected_value(away_p / 100.0, int(merged["away_team_odds"])),
-                2,
+            merged["away_team_ev"] = _american_ev(
+                away_p / 100.0, int(merged["away_team_odds"])
             )
         except (TypeError, ValueError):
             merged["away_team_ev"] = None
     if home_p is not None and merged.get("home_team_odds") is not None:
         try:
-            merged["home_team_ev"] = round(
-                Expected_Value.expected_value(home_p / 100.0, int(merged["home_team_odds"])),
-                2,
+            merged["home_team_ev"] = _american_ev(
+                home_p / 100.0, int(merged["home_team_odds"])
             )
         except (TypeError, ValueError):
             merged["home_team_ev"] = None
@@ -73,21 +79,21 @@ def _apply_book_odds(base_game, odds_by_game):
 
 
 def _load_sbr_odds_by_book():
-    """One scoreboard fetch, odds extracted per sportsbook."""
+    """One SBR soccer fetch, odds extracted per sportsbook for WC fixtures."""
     from sbrscrape import Scoreboard
-    from src.DataProviders.SbrOddsProvider import SbrOddsProvider
+    from wc_odds import WcOddsProvider
 
     try:
-        sb = Scoreboard(sport="NBA")
+        sb = Scoreboard(sport="Soccer")
         sb_games = sb.games if hasattr(sb, "games") else []
     except Exception as exc:
-        print(f"[odds] SBR scoreboard failed: {exc}")
+        print(f"[odds] SBR soccer scoreboard failed: {exc}")
         sb_games = []
 
     by_book = {}
     for book in _SPORTSBOOKS:
         try:
-            by_book[book] = SbrOddsProvider.with_games(sb_games, book).get_odds()
+            by_book[book] = WcOddsProvider.with_games(sb_games, book).get_odds()
         except Exception as exc:
             print(f"[odds] {book} parse failed: {exc}")
             by_book[book] = {}
@@ -189,37 +195,19 @@ def _parse_predictions_stdout(stdout):
 
 
 def fetch_game_data(sportsbook="fanduel"):
-    cmd = [
-        sys.executable,
-        str(_ROOT_DIR / "main.py"),
-        "-xgb",
-        "-json",
-        f"-odds={sportsbook}",
-    ]
+    """World Cup 2026 predictions (Elo + goals model)."""
+    from wc_predict import build_prediction_board
+
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(_ROOT_DIR),
-            capture_output=True,
-            text=True,
-            timeout=_PREDICT_TIMEOUT_SEC,
-        )
-    except subprocess.TimeoutExpired:
-        print(f"[predict] {sportsbook} timed out after {_PREDICT_TIMEOUT_SEC}s")
-        return {}
+        board = build_prediction_board(sportsbook)
+        if board:
+            print(f"[predict] {sportsbook}: {len(board)} World Cup fixture(s)")
+        else:
+            print(f"[predict] {sportsbook}: no fixtures loaded")
+        return board
     except Exception as exc:
         print(f"[predict] {sportsbook} failed: {exc}")
         return {}
-
-    if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or "").strip()
-        print(f"[predict] {sportsbook} exit {proc.returncode}: {err[-2000:]}")
-        return {}
-
-    games = _parse_predictions_stdout(proc.stdout or "")
-    if not games:
-        print(f"[predict] {sportsbook}: no games parsed from model output")
-    return games
 
 
 def get_ttl_hash(seconds=600):
@@ -247,6 +235,14 @@ def ensure_warmup_started():
         _prediction_cache.clear()
         _warmup_state = {"status": "running", "error": None, "step": "starting"}
     threading.Thread(target=_run_warmup, daemon=True).start()
+
+
+def reset_warmup():
+    """Clear warmup error/cache so predictions can be rebuilt."""
+    global _warmup_state
+    with _warmup_lock:
+        _warmup_state = {"status": "idle", "error": None, "step": None}
+        _prediction_cache.clear()
 
 
 def _as_float(value):
@@ -388,6 +384,13 @@ def api_warmup():
     return jsonify(_warmup_state)
 
 
+@app.route("/api/warmup/retry", methods=["POST"])
+def api_warmup_retry():
+    reset_warmup()
+    ensure_warmup_started()
+    return jsonify(_warmup_state)
+
+
 @app.route("/loading")
 def loading_page():
     ensure_warmup_started()
@@ -415,8 +418,8 @@ def index():
     load_error = None
     if games_count == 0:
         load_error = (
-            "No predictions were generated. Team stats from stats.nba.com may have timed out — "
-            "run npm run prefetch:stats once, then restart the app."
+            "No World Cup fixtures loaded. Check your network or try again later — "
+            "demo fixtures are used when ESPN has no live board."
         )
 
     return render_template(

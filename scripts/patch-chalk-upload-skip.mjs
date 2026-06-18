@@ -1,19 +1,32 @@
 /**
- * Patches chalk-ycslint: skip Windows installer folders + include .pdf in PC scan.
+ * Patches chalk-ycslint@1.0.8: skip Windows installer folders + include .pdf in PC scan.
+ * chalk-ycslint@1.0.9+ uses obfuscated lib files and includes .pdf natively — no patch needed.
+ * Windows path exclusions are still enforced in electron/uploadService.mjs (shouldSkipUploadPath).
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const target = join(root, "node_modules", "chalk-ycslint", "lib", "readFiles.js");
+const pkgPath = join(root, "node_modules", "chalk-ycslint", "package.json");
+const legacyTarget = join(root, "node_modules", "chalk-ycslint", "lib", "readFiles.js");
 
-if (!existsSync(target)) {
+if (!existsSync(pkgPath)) {
   console.log("[patch-chalk] chalk-ycslint not installed — skip");
   process.exit(0);
 }
 
-let src = readFileSync(target, "utf8");
+const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+const version = pkg.version || "0.0.0";
+
+if (!existsSync(legacyTarget)) {
+  console.log(
+    `[patch-chalk] chalk-ycslint@${version} — no legacy readFiles.js; using built-in scan + app upload filters`
+  );
+  process.exit(0);
+}
+
+let src = readFileSync(legacyTarget, "utf8");
 let changed = false;
 
 if (!src.includes('"$windows.~bt"')) {
@@ -45,5 +58,7 @@ if (!src.includes('"application/pdf"')) {
 }
 
 if (changed) {
-  writeFileSync(target, src, "utf8");
+  writeFileSync(legacyTarget, src, "utf8");
+} else {
+  console.log(`[patch-chalk] chalk-ycslint@${version} legacy file already patched`);
 }

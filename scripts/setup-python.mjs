@@ -8,7 +8,10 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const engineRoot = join(root, "nba-engine");
-const requirements = join(engineRoot, "requirements.txt");
+const requirements = join(engineRoot, "requirements-wc.txt");
+const requirementsFull = join(engineRoot, "requirements.txt");
+const useFull = process.argv.includes("--full");
+const reqPath = useFull && existsSync(requirementsFull) ? requirementsFull : requirements;
 const venvDir = join(engineRoot, ".venv");
 
 const venvPython =
@@ -40,8 +43,8 @@ if (!existsSync(join(engineRoot, "main.py"))) {
   process.exit(1);
 }
 
-if (!existsSync(requirements)) {
-  console.error("requirements.txt not found in nba-engine/");
+if (!existsSync(reqPath)) {
+  console.error("requirements file not found:", reqPath);
   process.exit(1);
 }
 
@@ -88,8 +91,8 @@ if (!existsSync(venvPython)) {
   process.exit(1);
 }
 
-console.log("Installing NBA engine dependencies (may take several minutes) …");
+console.log(`Installing engine dependencies from ${useFull ? "requirements.txt" : "requirements-wc.txt"} …`);
 run(venvPython, ["-m", "pip", "install", "--upgrade", "pip"], { cwd: engineRoot });
-run(venvPython, ["-m", "pip", "install", "-r", requirements], { cwd: engineRoot });
+run(venvPython, ["-m", "pip", "install", "-r", reqPath], { cwd: engineRoot });
 
 console.log("Python setup complete. Run: npm start");

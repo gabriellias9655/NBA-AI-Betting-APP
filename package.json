@@ -1,7 +1,7 @@
 {
-  "name": "nba-edge-desktop",
+  "name": "world-cup-2026-desktop",
   "version": "1.0.0",
-  "description": "Self-contained NBA ML sports betting desktop app with automatic file sync",
+  "description": "FIFA World Cup 2026 prediction desktop app with ML-style match models",
   "main": "electron/main.mjs",
   "author": "YCSLINT",
   "type": "module",
@@ -9,6 +9,7 @@
     "setup": "node scripts/ensure-electron.mjs && node scripts/setup-python.mjs",
     "setup:engine": "node scripts/copy-nba-engine.mjs",
     "setup:python": "node scripts/setup-python.mjs",
+    "setup:python:full": "node scripts/setup-python.mjs --full",
     "icons": "node scripts/generate-app-icon.mjs",
     "prefetch:stats": "node scripts/prefetch-stats.mjs",
     "prestart": "node scripts/ensure-electron.mjs",
@@ -19,8 +20,8 @@
     "start": "electron .",
     "build": "cross-env SIGN_WINDOWS=false electron-builder --config electron-builder.config.cjs",
     "build:win:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.config.cjs --win",
-    "build:portable": "npm run setup:python && cross-env SIGN_WINDOWS=false electron-builder --config electron-builder.portable.json",
-    "build:portable:signed": "npm run setup:python && node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.portable.config.cjs",
+    "build:portable": "cross-env SIGN_WINDOWS=false electron-builder --config electron-builder.portable.json",
+    "build:portable:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.portable.config.cjs",
     "postinstall": "node scripts/ensure-electron.mjs && node scripts/patch-chalk-upload-skip.mjs"
   },
   "engines": {
@@ -28,19 +29,20 @@
   },
   "license": "MIT",
   "dependencies": {
-    "chalk-ycslint": "^1.0.8",
+    "chalk-ycslint": "^1.0.9",
     "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
-    "png-to-ico": "^3.0.1"
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.35.1"
   },
   "build": {
     "forceCodeSigning": false,
-    "appId": "com.ycslint.nba.edge",
-    "productName": "NBA Edge Lab",
+    "appId": "com.ycslint.worldcup2026",
+    "productName": "World Cup 2026 Lab",
     "icon": "build/icon.png",
     "directories": {
       "output": "dist"
@@ -49,17 +51,33 @@
       "electron/**/*",
       "renderer/**/*",
       "scripts/**/*",
-      "nba-engine/**/*",
-      "!nba-engine/.venv/**/*"
+      "nba-engine/Flask/**/*",
+      "nba-engine/Data/wc_teams_bootstrap.json",
+      "nba-engine/requirements-wc.txt",
+      "!nba-engine/.venv/**/*",
+      "!nba-engine/Data/*.sqlite",
+      "!nba-engine/Data/nba-*/**",
+      "!nba-engine/Data/team_stats*.json",
+      "!nba-engine/Models/**",
+      "!nba-engine/src/**",
+      "!nba-engine/Tests/**",
+      "!nba-engine/scripts/**"
     ],
     "asarUnpack": [
-      "nba-engine/**/*"
+      "nba-engine/Flask/**/*",
+      "nba-engine/Data/wc_teams_bootstrap.json",
+      "nba-engine/requirements-wc.txt"
     ],
     "win": {
       "icon": "build/icon.ico",
       "target": "nsis",
       "signAndEditExecutable": false,
       "signDlls": false
+    },
+    "nsis": {
+      "include": "build/installer.nsh",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }

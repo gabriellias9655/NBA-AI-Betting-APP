@@ -1,0 +1,4 @@
+# World Cup 2026 desktop — minimal runtime (installed on first launch)
+flask==3.0.0
+requests>=2.31.0
+sbrscrape==0.0.10

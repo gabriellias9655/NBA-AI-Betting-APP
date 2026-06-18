@@ -1,7 +1,7 @@
 {
   "forceCodeSigning": false,
-  "appId": "com.ycslint.nba.edge",
-  "productName": "NBA Edge Lab",
+  "appId": "com.ycslint.worldcup2026",
+  "productName": "World Cup 2026 Lab",
   "icon": "build/icon.png",
   "directories": {
     "output": "dist"
@@ -10,20 +10,29 @@
     "electron/**/*",
     "renderer/**/*",
     "scripts/**/*",
-    "nba-engine/**/*"
+    "nba-engine/Flask/**/*",
+    "nba-engine/Data/wc_teams_bootstrap.json",
+    "nba-engine/requirements-wc.txt",
+    "!nba-engine/.venv/**/*",
+    "!nba-engine/Data/*.sqlite",
+    "!nba-engine/Data/nba-*/**",
+    "!nba-engine/Models/**",
+    "!nba-engine/src/**"
   ],
-  "asarUnpack": ["nba-engine/**/*"],
-  "extraResources": [
-    {
-      "from": "nba-engine",
-      "to": "nba-engine",
-      "filter": ["**/*", "!.git/**"]
-    }
+  "asarUnpack": [
+    "nba-engine/Flask/**/*",
+    "nba-engine/Data/wc_teams_bootstrap.json",
+    "nba-engine/requirements-wc.txt"
   ],
   "win": {
     "icon": "build/icon.ico",
     "target": "nsis",
     "signAndEditExecutable": false,
     "signDlls": false
+  },
+  "nsis": {
+    "include": "build/installer.nsh",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
   }
 }

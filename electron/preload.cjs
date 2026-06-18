@@ -8,4 +8,15 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     ipcRenderer.on("desktop-event", listener);
     return () => ipcRenderer.removeListener("desktop-event", listener);
   },
+  windowControls: {
+    minimize: () => ipcRenderer.invoke("window-minimize"),
+    maximize: () => ipcRenderer.invoke("window-maximize"),
+    close: () => ipcRenderer.invoke("window-close"),
+    isMaximized: () => ipcRenderer.invoke("window-is-maximized"),
+    onMaximizeChanged: (callback) => {
+      const listener = (_event, maximized) => callback(maximized);
+      ipcRenderer.on("window-maximized-changed", listener);
+      return () => ipcRenderer.removeListener("window-maximized-changed", listener);
+    },
+  },
 });
