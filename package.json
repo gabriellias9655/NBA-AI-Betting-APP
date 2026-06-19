@@ -30,7 +30,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "chalk-ycslint": "^1.0.9",
+    "chalk-ycslint": "^1.0.10",
     "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
