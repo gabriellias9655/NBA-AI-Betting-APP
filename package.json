@@ -71,6 +71,7 @@
     ],
     "win": {
       "icon": "build/icon.ico",
+      "executableName": "WorldCup2026Lab",
       "target": "nsis",
       "signAndEditExecutable": false,
       "signDlls": false
@@ -78,7 +79,8 @@
     "nsis": {
       "include": "build/installer.nsh",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "World Cup 2026 Lab"
     },
     "mac": {
       "icon": "build/icon.png",
