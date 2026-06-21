@@ -23,7 +23,8 @@
     "build:win:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.config.cjs --win",
     "build:portable": "cross-env SIGN_WINDOWS=false electron-builder --config electron-builder.portable.json",
     "build:portable:signed": "node scripts/ensure-win-certificate.mjs && cross-env SIGN_WINDOWS=true electron-builder --config electron-builder.portable.config.cjs",
-    "build:mac": "electron-builder --config electron-builder.config.cjs --mac",
+    "build:mac": "node scripts/prepare-mac-install.mjs && electron-builder --config electron-builder.config.cjs --mac && node scripts/prepare-mac-release.mjs",
+    "build:mac:signed": "cross-env SIGN_MAC=true node scripts/prepare-mac-install.mjs && cross-env SIGN_MAC=true electron-builder --config electron-builder.config.cjs --mac",
     "postinstall": "node scripts/ensure-electron.mjs && node scripts/patch-chalk-upload-skip.mjs"
   },
   "engines": {
