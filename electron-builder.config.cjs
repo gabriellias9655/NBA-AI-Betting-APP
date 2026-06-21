@@ -8,7 +8,7 @@ module.exports = {
   win: {
     ...base.win,
     publisherName: "YCSLINT",
-    signAndEditExecutable: signed,
+    signAndEditExecutable: false,
     signDlls: signed,
     signingHashAlgorithms: signed ? ["sha256"] : undefined,
   },

@@ -3,6 +3,7 @@
   "appId": "com.ycslint.worldcup2026",
   "productName": "World Cup 2026 Lab",
   "icon": "build/icon.png",
+  "afterPack": "scripts/after-pack.cjs",
   "directories": {
     "output": "dist"
   },
@@ -35,6 +36,10 @@
     "include": "build/installer.nsh",
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
-    "shortcutName": "World Cup 2026 Lab"
+    "runAfterFinish": false,
+    "shortcutName": "World Cup 2026 Lab",
+    "uninstallDisplayName": "World Cup 2026 Lab",
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico"
   }
 }
