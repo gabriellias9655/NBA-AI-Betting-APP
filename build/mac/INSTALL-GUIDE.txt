@@ -1,0 +1,94 @@
+World Cup 2026 Lab — Mac Install Guide
+======================================
+
+WHAT YOU NEED
+-------------
+- macOS 11 or later (Apple Silicon or Intel Mac)
+- Internet connection (first launch downloads the prediction engine)
+
+
+DOWNLOAD
+--------
+Download the file named something like:
+
+  World Cup 2026 Lab-1.0.0.dmg
+
+Use the official download link only.
+
+
+INSTALL (RECOMMENDED)
+---------------------
+1. Open your Downloads folder.
+2. Double-click the .dmg file (e.g. World Cup 2026 Lab-1.0.0.dmg).
+3. A window opens showing:
+   - World Cup 2026 Lab
+   - Install.command
+   - Applications (shortcut)
+4. Double-click "Install.command".
+5. If macOS asks whether to open it, click Open.
+6. Wait until you see "Done. Opening World Cup 2026 Lab..."
+7. The app is installed to Applications and should open automatically.
+
+
+IF macOS SAYS THE APP IS "DAMAGED" OR WON'T OPEN
+------------------------------------------------
+This is normal for apps downloaded from the web without Apple signing.
+The app is not broken.
+
+Try this:
+
+1. Open Terminal (Applications → Utilities → Terminal).
+2. Paste this line and press Enter:
+
+   xattr -cr "/Applications/World Cup 2026 Lab.app"
+
+3. Open World Cup 2026 Lab from Applications.
+
+Or:
+
+1. Open Applications.
+2. Right-click (or Control-click) World Cup 2026 Lab.
+3. Click Open.
+4. Click Open again in the dialog.
+5. After the first time, you can open it normally.
+
+
+MANUAL INSTALL (WITHOUT Install.command)
+----------------------------------------
+1. Open the .dmg.
+2. Drag "World Cup 2026 Lab" into Applications.
+3. Open Terminal and run:
+
+   xattr -cr "/Applications/World Cup 2026 Lab.app"
+
+4. Open the app from Applications.
+
+
+FIRST LAUNCH
+------------
+1. The app may show a setup screen while it downloads Python and
+   prediction libraries (one-time, a few minutes).
+2. Keep your Mac connected to the internet.
+3. When setup finishes, the World Cup dashboard opens.
+
+If setup fails, quit the app, check your connection, and open it again.
+Use "Try again" on the loading screen if it appears.
+
+
+UNINSTALL
+---------
+1. Quit World Cup 2026 Lab.
+2. Drag World Cup 2026 Lab from Applications to the Trash.
+3. Optional — remove app data (downloads Python/runtime data):
+
+   rm -rf ~/Library/Application\ Support/world-cup-2026-desktop
+
+
+QUICK SUMMARY
+-------------
+Download the .dmg → open it → double-click Install.command →
+use the app from Applications.
+
+If blocked, run in Terminal:
+
+   xattr -cr "/Applications/World Cup 2026 Lab.app"
