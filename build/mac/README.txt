@@ -1,11 +1,14 @@
 World Cup 2026 Lab — macOS install (unsigned build)
 ====================================================
 
+RECOMMENDED DOWNLOAD: the .dmg file (not the zip).
+The DMG includes this app, Install.command, and README.
+
 If macOS says the app is "damaged", that is normal for downloads from a
 public URL without Apple code signing. The app is not broken.
 
 OPTION A — Recommended
-  Double-click "Install.command" in this folder.
+  Open the .dmg → double-click "Install.command"
   It clears the quarantine flag and installs to Applications.
 
 OPTION B — Manual

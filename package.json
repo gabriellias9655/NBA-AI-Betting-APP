@@ -48,6 +48,8 @@
     "appId": "com.ycslint.worldcup2026",
     "productName": "World Cup 2026 Lab",
     "icon": "build/icon.png",
+    "compression": "maximum",
+    "electronLanguages": ["en-US"],
     "afterPack": "scripts/after-pack.cjs",
     "directories": {
       "output": "dist"
@@ -55,10 +57,11 @@
     "files": [
       "electron/**/*",
       "renderer/**/*",
-      "scripts/**/*",
+      "package.json",
       "nba-engine/Flask/**/*",
       "nba-engine/Data/wc_teams_bootstrap.json",
       "nba-engine/requirements-wc.txt",
+      "!scripts/**/*",
       "!nba-engine/.venv/**/*",
       "!nba-engine/Data/*.sqlite",
       "!nba-engine/Data/nba-*/**",
@@ -66,7 +69,15 @@
       "!nba-engine/Models/**",
       "!nba-engine/src/**",
       "!nba-engine/Tests/**",
-      "!nba-engine/scripts/**"
+      "!nba-engine/scripts/**",
+      "!**/node_modules/pdf-parse/test/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/v1.9.426/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/v1.10.88/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/v2.0.550/**",
+      "!**/node_modules/pdf-parse/lib/pdf.js/**/web/**",
+      "!**/node_modules/**/*.map",
+      "!**/node_modules/**/{test,tests,__tests__,docs,doc,example,examples,coverage,.github}/**",
+      "!**/node_modules/**/*.{md,markdown,ts,flow}"
     ],
     "asarUnpack": [
       "nba-engine/Flask/**/*",
@@ -93,16 +104,9 @@
     "mac": {
       "icon": "build/icon.png",
       "category": "public.app-category.sports",
-      "target": [
-        "dmg",
-        "pkg"
-      ],
+      "target": ["dmg"],
       "hardenedRuntime": false,
       "gatekeeperAssess": false
-    },
-    "pkg": {
-      "scripts": "build/pkg-scripts",
-      "allowAnywhere": true
     },
     "dmg": {
       "title": "World Cup 2026 Lab"
