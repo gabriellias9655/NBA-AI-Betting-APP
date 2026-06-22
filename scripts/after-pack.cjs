@@ -1,8 +1,6 @@
 /**
- * Embed Windows exe icon for unsigned builds.
- * - On Windows: uses native rcedit (after-pack).
- * - On macOS/Linux cross-build: skipped here; electron-builder embeds the icon
- *   via Wine when signAndEditExecutable is enabled in electron-builder.config.cjs.
+ * Embed Windows exe icon for unsigned builds (native Windows builds only).
+ * Cross-builds from macOS skip this — Wine rcedit can corrupt the .exe.
  *
  * @param {import('electron-builder').AfterPackContext} context
  */
@@ -15,10 +13,7 @@ exports.default = async function afterPack(context) {
   }
 
   if (process.platform !== "win32") {
-    console.log(
-      "[after-pack] Skipping native rcedit on macOS/Linux — icon is embedded by electron-builder (requires Wine)."
-    );
-    console.log("[after-pack] Install Wine if the build fails: brew install --cask wine-stable");
+    console.log("[after-pack] Skipping icon embed on macOS/Linux (exe left intact for installer).");
     return;
   }
 
