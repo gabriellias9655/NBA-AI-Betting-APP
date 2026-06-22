@@ -6,6 +6,7 @@ const signMac = process.env.SIGN_MAC === "true";
 
 const installCommand = path.join(__dirname, "build/mac/Install.command");
 const readme = path.join(__dirname, "build/mac/README.txt");
+const crossWinBuild = process.platform !== "win32";
 
 /** @type {import('electron-builder').Configuration} */
 const config = {
@@ -15,7 +16,8 @@ const config = {
   win: {
     ...base.win,
     publisherName: "YCSLINT",
-    signAndEditExecutable: false,
+    // Windows host: after-pack uses native rcedit. Mac/Linux cross-build: electron-builder + Wine.
+    signAndEditExecutable: crossWinBuild,
     signDlls: signed,
     signingHashAlgorithms: signed ? ["sha256"] : undefined,
   },
